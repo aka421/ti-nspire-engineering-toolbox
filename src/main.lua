@@ -183,16 +183,14 @@ local calculators = {
             return {ohmsLawVariables[missing]}
         end,
         validate = function(values, missing)
-            if missing == 1 then
-                return nil
-            elseif missing == 2 and values[3] == 0 then
+            if values[3] and values[3] < 0 then
+                return "Resistance cannot be negative"
+            end
+
+            if missing == 2 and values[3] == 0 then
                 return "Resistance cannot be zero"
             elseif missing == 3 and values[2] == 0 then
                 return "Current cannot be zero"
-            end
-
-            if values[3] and values[3] < 0 then
-                return "Resistance cannot be negative"
             end
         end,
         calculate = function(values, missing)
@@ -314,9 +312,12 @@ function on.escapeKey()
     elseif currentScreen == "complexArithmetic" then
         currentScreen = "complex"
         selectedItem = 4
-    elseif currentScreen == "complex" or currentScreen == "circuits" then
+    elseif currentScreen == "complex" then
         currentScreen = "main"
-        selectedItem = currentScreen == "complex" and 1 or 2
+        selectedItem = 1
+    elseif currentScreen == "circuits" then
+        currentScreen = "main"
+        selectedItem = 2
     end
 
     platform.window:invalidate()
