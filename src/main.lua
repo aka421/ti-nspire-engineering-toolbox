@@ -44,6 +44,14 @@ local function eachEnteredValue(values, callback)
     end
 end
 
+local function validatePositiveResistors(values)
+    for i = 1, #values do
+        if values[i] <= 0 then
+            return "Resistances must be positive"
+        end
+    end
+end
+
 local ohmsLawVariables = {
     [1] = {label = "Voltage", unit = "V"},
     [2] = {label = "Current", unit = "A"},
@@ -73,9 +81,7 @@ local calculators = {
         inputs = {{label = "Magnitude"}, {label = "Angle", unit = "degrees"}},
         outputs = {{label = "Real part"}, {label = "Imaginary part"}},
         validate = function(values)
-            if values[1] < 0 then
-                return "Magnitude cannot be negative"
-            end
+            if values[1] < 0 then return "Magnitude cannot be negative" end
         end,
         calculate = function(values)
             return complex.polarToRect(values[1], values[2])
@@ -127,9 +133,7 @@ local calculators = {
         inputs = arithmeticInputs(),
         outputs = arithmeticOutputs(),
         validate = function(values)
-            if values[3] == 0 and values[4] == 0 then
-                return "Cannot divide by zero"
-            end
+            if values[3] == 0 and values[4] == 0 then return "Cannot divide by zero" end
         end,
         calculate = function(values)
             return complex.divide(values[1], values[2], values[3], values[4])
@@ -145,21 +149,13 @@ local calculators = {
             return {ohmsLawVariables[missing]}
         end,
         validate = function(values, missing)
-            if values[3] and values[3] < 0 then
-                return "Resistance cannot be negative"
-            end
-            if missing == 2 and values[3] == 0 then
-                return "Resistance cannot be zero"
-            elseif missing == 3 and values[2] == 0 then
-                return "Current cannot be zero"
-            end
+            if values[3] and values[3] < 0 then return "Resistance cannot be negative" end
+            if missing == 2 and values[3] == 0 then return "Resistance cannot be zero" end
+            if missing == 3 and values[2] == 0 then return "Current cannot be zero" end
         end,
         calculate = function(values, missing)
-            if missing == 1 then
-                return values[2] * values[3]
-            elseif missing == 2 then
-                return values[1] / values[3]
-            end
+            if missing == 1 then return values[2] * values[3] end
+            if missing == 2 then return values[1] / values[3] end
             return values[1] / values[2]
         end
     }),
@@ -279,8 +275,7 @@ local calculators = {
         inputs = resistorInputs(5),
         outputs = {{label = "Equivalent resistance", unit = "ohm"}},
         validate = function(values)
-            local negative = false
-            local zero = false
+            local negative, zero = false, false
             eachEnteredValue(values, function(value)
                 if value < 0 then negative = true end
                 if value == 0 then zero = true end
@@ -294,6 +289,52 @@ local calculators = {
                 reciprocalSum = reciprocalSum + (1 / value)
             end)
             return 1 / reciprocalSum
+        end
+    }),
+
+    deltaToWye = Calculator.new({
+        title = "Delta to Wye",
+        subtitle = "Delta resistors connect terminal pairs",
+        inputs = {
+            {label = "R_AB", unit = "ohm"},
+            {label = "R_BC", unit = "ohm"},
+            {label = "R_CA", unit = "ohm"}
+        },
+        outputs = {
+            {label = "R_A", unit = "ohm"},
+            {label = "R_B", unit = "ohm"},
+            {label = "R_C", unit = "ohm"}
+        },
+        validate = validatePositiveResistors,
+        calculate = function(values)
+            local rab, rbc, rca = values[1], values[2], values[3]
+            local sum = rab + rbc + rca
+            return rab * rca / sum,
+                rab * rbc / sum,
+                rbc * rca / sum
+        end
+    }),
+
+    wyeToDelta = Calculator.new({
+        title = "Wye to Delta",
+        subtitle = "Wye resistors run from terminal to centre",
+        inputs = {
+            {label = "R_A", unit = "ohm"},
+            {label = "R_B", unit = "ohm"},
+            {label = "R_C", unit = "ohm"}
+        },
+        outputs = {
+            {label = "R_AB", unit = "ohm"},
+            {label = "R_BC", unit = "ohm"},
+            {label = "R_CA", unit = "ohm"}
+        },
+        validate = validatePositiveResistors,
+        calculate = function(values)
+            local ra, rb, rc = values[1], values[2], values[3]
+            local productSum = ra * rb + rb * rc + rc * ra
+            return productSum / rc,
+                productSum / ra,
+                productSum / rb
         end
     })
 }
@@ -337,8 +378,8 @@ local resistorNetworksMenu = {
     items = {
         {label = "Series Resistance", calculator = "seriesResistance"},
         {label = "Parallel Resistance", calculator = "parallelResistance"},
-        {label = "Delta to Wye"},
-        {label = "Wye to Delta"}
+        {label = "Delta to Wye", calculator = "deltaToWye"},
+        {label = "Wye to Delta", calculator = "wyeToDelta"}
     }
 }
 
