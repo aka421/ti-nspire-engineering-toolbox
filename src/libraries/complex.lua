@@ -23,3 +23,24 @@ function complex.polarToRect(magnitude, angleDegrees)
 
     return realPart, imaginaryPart
 end
+
+function complex.add(aRe, aIm, bRe, bIm)
+    return aRe + bRe, aIm + bIm
+end
+
+function complex.subtract(aRe, aIm, bRe, bIm)
+    return aRe - bRe, aIm - bIm
+end
+
+function complex.multiply(aRe, aIm, bRe, bIm)
+    local realPart = (aRe * bRe) - (aIm * bIm)
+    local imaginaryPart = (aRe * bIm) + (aIm * bRe)
+    return realPart, imaginaryPart
+end
+
+function complex.divide(aRe, aIm, bRe, bIm)
+    local denominator = (bRe * bRe) + (bIm * bIm)
+    local realPart = ((aRe * bRe) + (aIm * bIm)) / denominator
+    local imaginaryPart = ((aIm * bRe) - (aRe * bIm)) / denominator
+    return realPart, imaginaryPart
+end
