@@ -3,6 +3,20 @@
 
 platform.apiLevel = "2.0"
 
+local complex = {}
+
+function complex.magnitude(re, im)
+    return math.sqrt(re * re + im * im)
+end
+
+function complex.phase(re, im)
+    return math.atan2(im, re) * 180 / math.pi
+end
+
+function complex.rectToPolar(re, im)
+    return complex.magnitude(re, im), complex.phase(re, im)
+end
+
 local screens = {
     main = {
         title = "Engineering Toolbox",
