@@ -7,6 +7,7 @@ local calculators = {}
 registerComplexCalculators(calculators)
 registerCircuitCalculators(calculators)
 registerElectromagneticsCalculators(calculators)
+registerCoordinateCalculators(calculators)
 
 local complexArithmeticMenu = {
     title = "Complex Arithmetic",
@@ -112,12 +113,25 @@ local vectorOperationsMenu = {
     }
 }
 
+local coordinateSystemsMenu = {
+    title = "Coordinate Systems",
+    subtitle = "Points and vector components",
+    items = {
+        {label = "Cartesian to Cylindrical", calculator = "cartesianToCylindrical"},
+        {label = "Cylindrical to Cartesian", calculator = "cylindricalToCartesian"},
+        {label = "Cartesian to Spherical", calculator = "cartesianToSpherical"},
+        {label = "Spherical to Cartesian", calculator = "sphericalToCartesian"},
+        {label = "Cyl Vector to Cartesian", calculator = "cylindricalVectorToCartesian"},
+        {label = "Sph Vector to Cartesian", calculator = "sphericalVectorToCartesian"}
+    }
+}
+
 local generalMathMenu = {
     title = "General Math",
     subtitle = "Reusable mathematical tools",
     items = {
         {label = "Vector Operations", menu = vectorOperationsMenu},
-        {label = "Coordinate Systems"}
+        {label = "Coordinate Systems", menu = coordinateSystemsMenu}
     }
 }
 
