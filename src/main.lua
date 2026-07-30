@@ -1,49 +1,7 @@
 -- TI-Nspire Engineering Toolbox
--- Application menus and calculator definitions.
+-- Application menu tree and calculator definitions.
 
 platform.apiLevel = "2.0"
-
-local menus = {
-    main = {
-        title = "Engineering Toolbox",
-        subtitle = "Use arrows and Enter",
-        items = {
-            "Complex Numbers",
-            "Circuit Analysis",
-            "Linear Algebra",
-            "Signals and Systems",
-            "General Math"
-        }
-    },
-    complex = {
-        title = "Complex Numbers",
-        subtitle = "Enter to select, Esc to return",
-        items = {
-            "Rectangular to Polar",
-            "Polar to Rectangular",
-            "Magnitude and Phase",
-            "Complex Arithmetic"
-        }
-    },
-    complexArithmetic = {
-        title = "Complex Arithmetic",
-        subtitle = "Choose an operation",
-        items = {
-            "Add",
-            "Subtract",
-            "Multiply",
-            "Divide"
-        }
-    },
-    circuits = {
-        title = "Circuit Analysis",
-        subtitle = "Enter to select, Esc to return",
-        items = {
-            "Ohm's Law",
-            "Electrical Power"
-        }
-    }
-}
 
 local function degrees(value)
     return string.format("%.4f degrees", value)
@@ -292,120 +250,172 @@ local calculators = {
     })
 }
 
-local complexRoutes = {
-    [1] = "rectToPolar",
-    [2] = "polarToRect",
-    [3] = "magnitudePhase"
+-- Menu nodes may contain submenu items, calculator items, or placeholders.
+local complexArithmeticMenu = {
+    title = "Complex Arithmetic",
+    subtitle = "Choose an operation",
+    items = {
+        {label = "Add", calculator = "complexAdd"},
+        {label = "Subtract", calculator = "complexSubtract"},
+        {label = "Multiply", calculator = "complexMultiply"},
+        {label = "Divide", calculator = "complexDivide"}
+    }
 }
 
-local arithmeticRoutes = {
-    [1] = "complexAdd",
-    [2] = "complexSubtract",
-    [3] = "complexMultiply",
-    [4] = "complexDivide"
+local complexMenu = {
+    title = "Complex Numbers",
+    subtitle = "Enter to select, Esc to return",
+    items = {
+        {label = "Rectangular to Polar", calculator = "rectToPolar"},
+        {label = "Polar to Rectangular", calculator = "polarToRect"},
+        {label = "Magnitude and Phase", calculator = "magnitudePhase"},
+        {label = "Complex Arithmetic", menu = complexArithmeticMenu}
+    }
 }
 
-local circuitRoutes = {
-    [1] = "ohmsLaw",
-    [2] = "electricalPower"
+local basicCircuitsMenu = {
+    title = "Basic Circuits",
+    subtitle = "Enter to select, Esc to return",
+    items = {
+        {label = "Ohm's Law", calculator = "ohmsLaw"},
+        {label = "Electrical Power", calculator = "electricalPower"},
+        {label = "Voltage Divider"},
+        {label = "Current Divider"}
+    }
 }
 
-local currentScreen = "main"
-local selectedItem = 1
+local resistorNetworksMenu = {
+    title = "Resistor Networks",
+    subtitle = "More tools coming soon",
+    items = {
+        {label = "Series Resistance"},
+        {label = "Parallel Resistance"},
+        {label = "Delta to Wye"},
+        {label = "Wye to Delta"}
+    }
+}
+
+local networkTheoremsMenu = {
+    title = "Network Theorems",
+    subtitle = "More tools coming soon",
+    items = {
+        {label = "Thevenin Equivalent"},
+        {label = "Norton Equivalent"},
+        {label = "Source Transformation"}
+    }
+}
+
+local circuitMenu = {
+    title = "Circuit Analysis",
+    subtitle = "Choose a category",
+    items = {
+        {label = "Basic Circuits", menu = basicCircuitsMenu},
+        {label = "Resistor Networks", menu = resistorNetworksMenu},
+        {label = "Network Theorems", menu = networkTheoremsMenu}
+    }
+}
+
+local rootMenu = {
+    title = "Engineering Toolbox",
+    subtitle = "Use arrows and Enter",
+    items = {
+        {label = "Complex Numbers", menu = complexMenu},
+        {label = "Circuit Analysis", menu = circuitMenu},
+        {label = "Linear Algebra"},
+        {label = "Signals and Systems"},
+        {label = "General Math"}
+    }
+}
+
+local menuStack = {
+    {menu = rootMenu, selected = 1}
+}
 local activeCalculator = nil
-local calculatorParent = "complex"
 
-local function openCalculator(name, parent)
+local function currentFrame()
+    return menuStack[#menuStack]
+end
+
+local function menuLabels(menu)
+    local labels = {}
+    for i, item in ipairs(menu.items) do
+        labels[i] = item.label
+    end
+    return labels
+end
+
+local function openCalculator(name)
     activeCalculator = calculators[name]
     activeCalculator:reset()
-    calculatorParent = parent or "complex"
-    currentScreen = "calculator"
+end
+
+local function openSelectedMenuItem()
+    local frame = currentFrame()
+    local item = frame.menu.items[frame.selected]
+
+    if item.menu then
+        menuStack[#menuStack + 1] = {menu = item.menu, selected = 1}
+    elseif item.calculator then
+        openCalculator(item.calculator)
+    end
 end
 
 function on.paint(gc)
-    if currentScreen == "calculator" then
+    if activeCalculator then
         activeCalculator:draw(gc)
         return
     end
 
-    local menu = menus[currentScreen]
-    Menu.draw(gc, menu.title, menu.items, selectedItem, menu.subtitle)
+    local frame = currentFrame()
+    Menu.draw(
+        gc,
+        frame.menu.title,
+        menuLabels(frame.menu),
+        frame.selected,
+        frame.menu.subtitle
+    )
 end
 
 function on.arrowKey(key)
-    if currentScreen == "calculator" then
+    if activeCalculator then
         activeCalculator:moveField(key)
     else
-        selectedItem = Menu.move(selectedItem, #menus[currentScreen].items, key)
+        local frame = currentFrame()
+        frame.selected = Menu.move(frame.selected, #frame.menu.items, key)
     end
 
     platform.window:invalidate()
 end
 
 function on.enterKey()
-    if currentScreen == "main" then
-        if selectedItem == 1 then
-            currentScreen = "complex"
-            selectedItem = 1
-        elseif selectedItem == 2 then
-            currentScreen = "circuits"
-            selectedItem = 1
-        end
-    elseif currentScreen == "complex" then
-        if selectedItem == 4 then
-            currentScreen = "complexArithmetic"
-            selectedItem = 1
-        else
-            local route = complexRoutes[selectedItem]
-            if route then
-                openCalculator(route, "complex")
-            end
-        end
-    elseif currentScreen == "complexArithmetic" then
-        local route = arithmeticRoutes[selectedItem]
-        if route then
-            openCalculator(route, "complexArithmetic")
-        end
-    elseif currentScreen == "circuits" then
-        local route = circuitRoutes[selectedItem]
-        if route then
-            openCalculator(route, "circuits")
-        end
-    elseif currentScreen == "calculator" then
+    if activeCalculator then
         activeCalculator:enter()
+    else
+        openSelectedMenuItem()
     end
 
     platform.window:invalidate()
 end
 
 function on.charIn(character)
-    if currentScreen == "calculator" then
+    if activeCalculator then
         activeCalculator:append(character)
         platform.window:invalidate()
     end
 end
 
 function on.backspaceKey()
-    if currentScreen == "calculator" then
+    if activeCalculator then
         activeCalculator:backspace()
         platform.window:invalidate()
     end
 end
 
 function on.escapeKey()
-    if currentScreen == "calculator" then
-        currentScreen = calculatorParent
+    if activeCalculator then
         activeCalculator = nil
-        selectedItem = 1
-    elseif currentScreen == "complexArithmetic" then
-        currentScreen = "complex"
-        selectedItem = 4
-    elseif currentScreen == "complex" then
-        currentScreen = "main"
-        selectedItem = 1
-    elseif currentScreen == "circuits" then
-        currentScreen = "main"
-        selectedItem = 2
+    elseif #menuStack > 1 then
+        table.remove(menuStack)
     end
 
     platform.window:invalidate()
