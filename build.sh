@@ -3,12 +3,23 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 LUNA="$ROOT/tools/Luna/luna"
+DIST="$ROOT/dist"
+BUNDLE="$DIST/engineering_toolbox.lua"
+OUTPUT="$DIST/engineering_toolbox.tns"
 
 if [[ ! -x "$LUNA" ]]; then
   echo "Luna is not built yet. Run ./setup-luna.sh first." >&2
   exit 1
 fi
 
-mkdir -p "$ROOT/dist"
-"$LUNA" "$ROOT/src/main.lua" "$ROOT/dist/engineering_toolbox.tns"
+mkdir -p "$DIST"
+
+cat \
+  "$ROOT/src/libraries/complex.lua" \
+  "$ROOT/src/ui/menu.lua" \
+  "$ROOT/src/ui/calculator.lua" \
+  "$ROOT/src/main.lua" \
+  > "$BUNDLE"
+
+"$LUNA" "$BUNDLE" "$OUTPUT"
 echo "Built: dist/engineering_toolbox.tns"
