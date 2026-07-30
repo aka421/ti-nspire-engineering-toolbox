@@ -3,22 +3,56 @@
 Calculator = {}
 Calculator.__index = Calculator
 
-function Calculator.new(definition)
-    local values = {}
-    for i = 1, #definition.inputs do
-        values[i] = ""
+local engineeringPrefixes = {
+    [-12] = "p",
+    [-9] = "n",
+    [-6] = "u",
+    [-3] = "m",
+    [0] = "",
+    [3] = "k",
+    [6] = "M",
+    [9] = "G",
+    [12] = "T"
+}
+
+local function engineeringFormat(value)
+    if value == 0 then
+        return "0"
     end
 
+    local absoluteValue = math.abs(value)
+    local exponent = math.floor(math.log(absoluteValue) / math.log(10) / 3) * 3
+
+    if exponent < -12 or exponent > 12 then
+        return string.format("%.4e", value)
+    end
+
+    local scaledValue = value / (10 ^ exponent)
+    return string.format("%.4g%s", scaledValue, engineeringPrefixes[exponent])
+end
+
+local function makeEmptyValues(count)
+    local values = {}
+    for i = 1, count do
+        values[i] = ""
+    end
+    return values
+end
+
+function Calculator.new(definition)
     local instance = {
         title = definition.title,
         subtitle = definition.subtitle,
         inputs = definition.inputs,
         outputs = definition.outputs,
+        resolveOutputs = definition.resolveOutputs,
         calculateValues = definition.calculate,
         validate = definition.validate,
+        allowOneBlank = definition.allowOneBlank or false,
         selectedField = 1,
-        values = values,
+        values = makeEmptyValues(#definition.inputs),
         results = nil,
+        resultOutputs = nil,
         errorMessage = nil
     }
 
@@ -27,24 +61,44 @@ end
 
 function Calculator:reset()
     self.selectedField = 1
-    self.values = {}
-    for i = 1, #self.inputs do
-        self.values[i] = ""
-    end
+    self.values = makeEmptyValues(#self.inputs)
     self.results = nil
+    self.resultOutputs = nil
     self.errorMessage = nil
 end
 
-local function drawInputField(gc, label, text, y, selected)
+local function labelWithUnit(item)
+    if item.unit and item.unit ~= "" then
+        return item.label .. " (" .. item.unit .. ")"
+    end
+    return item.label
+end
+
+local function drawInputField(gc, input, text, y, selected)
     gc:setFont("sansserif", "r", 10)
-    gc:drawString(label .. ":", 20, y, "top")
+    gc:drawString(labelWithUnit(input) .. ":", 20, y, "top")
 
     if selected then
         gc:setFont("sansserif", "b", 10)
-        gc:drawString("> " .. text .. "_", 135, y, "top")
+        gc:drawString("> " .. text .. "_", 145, y, "top")
     else
-        gc:drawString("  " .. text, 135, y, "top")
+        gc:drawString("  " .. text, 145, y, "top")
     end
+end
+
+local function formatOutput(output, value)
+    local formatted
+    if output.format then
+        formatted = output.format(value)
+    else
+        formatted = engineeringFormat(value)
+    end
+
+    if output.unit and output.unit ~= "" then
+        formatted = formatted .. " " .. output.unit
+    end
+
+    return formatted
 end
 
 function Calculator:draw(gc)
@@ -57,12 +111,15 @@ function Calculator:draw(gc)
     gc:drawString(self.title, width / 2, 12, "middle")
 
     gc:setFont("sansserif", "r", 9)
-    gc:drawString(self.subtitle or "Type a value, then press Enter", width / 2, 34, "middle")
+    local defaultSubtitle = self.allowOneBlank
+        and "Leave one value blank, then press Enter"
+        or "Type a value, then press Enter"
+    gc:drawString(self.subtitle or defaultSubtitle, width / 2, 34, "middle")
 
     for i, input in ipairs(self.inputs) do
         drawInputField(
             gc,
-            input.label,
+            input,
             self.values[i],
             inputStart + ((i - 1) * inputSpacing),
             self.selectedField == i
@@ -74,11 +131,10 @@ function Calculator:draw(gc)
         gc:drawString(self.errorMessage, width / 2, outputStart, "middle")
     elseif self.results then
         gc:setFont("sansserif", "b", 10)
-        for i, output in ipairs(self.outputs) do
-            local formatted = output.format and output.format(self.results[i])
-                or string.format("%.4f", self.results[i])
+        local outputs = self.resultOutputs or self.outputs
+        for i, output in ipairs(outputs) do
             gc:drawString(
-                output.label .. ": " .. formatted,
+                output.label .. ": " .. formatOutput(output, self.results[i]),
                 20,
                 outputStart + ((i - 1) * 24),
                 "top"
@@ -104,36 +160,66 @@ function Calculator:moveField(key)
     end
 end
 
+local function parseValues(textValues, allowOneBlank)
+    local numbers = {}
+    local missing = nil
+    local blankCount = 0
+
+    for i, text in ipairs(textValues) do
+        if text == "" then
+            blankCount = blankCount + 1
+            missing = i
+            numbers[i] = nil
+        else
+            numbers[i] = tonumber(text)
+            if numbers[i] == nil then
+                return nil, nil, "Enter valid numbers"
+            end
+        end
+    end
+
+    if allowOneBlank then
+        if blankCount ~= 1 then
+            return nil, nil, "Leave exactly one value blank"
+        end
+    elseif blankCount > 0 then
+        return nil, nil, "Complete every input"
+    end
+
+    return numbers, missing, nil
+end
+
 function Calculator:enter()
     if self.selectedField < #self.inputs then
         self.selectedField = self.selectedField + 1
         return
     end
 
-    local numbers = {}
-    for i, text in ipairs(self.values) do
-        numbers[i] = tonumber(text)
-        if numbers[i] == nil then
-            self.errorMessage = "Enter valid numbers"
-            self.results = nil
-            return
-        end
+    local numbers, missing, parseError = parseValues(self.values, self.allowOneBlank)
+    if parseError then
+        self.errorMessage = parseError
+        self.results = nil
+        self.resultOutputs = nil
+        return
     end
 
     if self.validate then
-        local errorMessage = self.validate(numbers)
+        local errorMessage = self.validate(numbers, missing)
         if errorMessage then
             self.errorMessage = errorMessage
             self.results = nil
+            self.resultOutputs = nil
             return
         end
     end
 
-    self.results = {self.calculateValues(numbers)}
+    self.results = {self.calculateValues(numbers, missing)}
+    self.resultOutputs = self.resolveOutputs and self.resolveOutputs(numbers, missing) or self.outputs
     self.errorMessage = nil
 end
 
 function Calculator:append(character)
+    local text = self.values[self.selectedField]
     local isDigit = character >= "0" and character <= "9"
     local isDecimal = character == "."
     local isNegative = character == "-"
@@ -142,8 +228,17 @@ function Calculator:append(character)
         return
     end
 
-    self.values[self.selectedField] = self.values[self.selectedField] .. character
+    if isDecimal and string.find(text, ".", 1, true) then
+        return
+    end
+
+    if isNegative and text ~= "" then
+        return
+    end
+
+    self.values[self.selectedField] = text .. character
     self.results = nil
+    self.resultOutputs = nil
     self.errorMessage = nil
 end
 
@@ -151,5 +246,6 @@ function Calculator:backspace()
     local text = self.values[self.selectedField]
     self.values[self.selectedField] = string.sub(text, 1, -2)
     self.results = nil
+    self.resultOutputs = nil
     self.errorMessage = nil
 end
