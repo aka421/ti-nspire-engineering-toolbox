@@ -3,6 +3,12 @@
 Calculator = {}
 Calculator.__index = Calculator
 
+ToolboxState = ToolboxState or {
+    ans = 0,
+    history = {},
+    favorites = {}
+}
+
 local engineeringPrefixes = {
     [-12] = "p", [-9] = "n", [-6] = "u", [-3] = "m",
     [0] = "", [3] = "k", [6] = "M", [9] = "G", [12] = "T"
@@ -33,6 +39,12 @@ local function makeEmptyValues(count)
     local values = {}
     for i = 1, count do values[i] = "" end
     return values
+end
+
+local function copyValues(values)
+    local result = {}
+    for i, value in ipairs(values) do result[i] = value end
+    return result
 end
 
 local function labelWithUnit(item)
@@ -87,8 +99,20 @@ local function parseValues(textValues, allowOneBlank, allowOptionalInputs, minim
     return numbers, missing, nil
 end
 
+local function saveHistory(calculator, numbers, results)
+    local entry = {
+        title = calculator.title,
+        expressions = copyValues(calculator.values),
+        values = copyValues(numbers),
+        results = copyValues(results)
+    }
+    table.insert(ToolboxState.history, 1, entry)
+    while #ToolboxState.history > 20 do table.remove(ToolboxState.history) end
+end
+
 function Calculator.new(definition)
     return setmetatable({
+        id = definition.id,
         title = definition.title,
         subtitle = definition.subtitle,
         inputs = definition.inputs,
@@ -162,7 +186,7 @@ function Calculator:draw(gc)
     elseif self.allowOptionalInputs then
         defaultSubtitle = "Enter values; unused fields may stay blank"
     else
-        defaultSubtitle = "Numbers or expressions; Enter to continue"
+        defaultSubtitle = "Expressions, SI prefixes, or Ans"
     end
     drawCenteredFitted(gc, self.subtitle or defaultSubtitle, 32, false, 9, 7)
     self:drawInputPage(gc)
@@ -214,6 +238,11 @@ function Calculator:calculate()
 
     self.results = calculated
     self.resultOutputs = self.resolveOutputs and self.resolveOutputs(numbers, missing) or self.outputs
+    if type(calculated[1]) == "number" then
+        ToolboxState.ans = calculated[1]
+        expression.setAns(calculated[1])
+    end
+    saveHistory(self, numbers, calculated)
     self.errorMessage = nil
     self.page = "results"
     return true
@@ -236,7 +265,6 @@ end
 
 function Calculator:append(character)
     if self.page ~= "inputs" then return end
-
     local allowedSymbols = ".+-*/^()_ "
     local isDigit = character >= "0" and character <= "9"
     local isLetter = (character >= "a" and character <= "z") or (character >= "A" and character <= "Z")
