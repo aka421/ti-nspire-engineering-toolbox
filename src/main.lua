@@ -38,18 +38,18 @@ end
 
 local function eachEnteredValue(values, callback)
     for i = 1, #values do
-        if values[i] ~= nil then
-            callback(values[i], i)
-        end
+        if values[i] ~= nil then callback(values[i], i) end
     end
 end
 
 local function validatePositiveResistors(values)
     for i = 1, #values do
-        if values[i] <= 0 then
-            return "Resistances must be positive"
-        end
+        if values[i] <= 0 then return "Resistances must be positive" end
     end
+end
+
+local function validatePositiveEquivalentResistance(values)
+    if values[2] <= 0 then return "Resistance must be positive" end
 end
 
 local ohmsLawVariables = {
@@ -173,7 +173,6 @@ local calculators = {
             local voltage, current, resistance, power = values[1], values[2], values[3], values[4]
             if resistance and resistance < 0 then return "Resistance cannot be negative" end
             if power and power < 0 then return "Power cannot be negative" end
-
             if missing == 1 then
                 if not approximatelyEqual(power, current * current * resistance) then
                     return "I, R, and P are inconsistent"
@@ -260,9 +259,7 @@ local calculators = {
         end,
         calculate = function(values)
             local total = 0
-            eachEnteredValue(values, function(value)
-                total = total + value
-            end)
+            eachEnteredValue(values, function(value) total = total + value end)
             return total
         end
     }),
@@ -309,9 +306,7 @@ local calculators = {
         calculate = function(values)
             local rab, rbc, rca = values[1], values[2], values[3]
             local sum = rab + rbc + rca
-            return rab * rca / sum,
-                rab * rbc / sum,
-                rbc * rca / sum
+            return rab * rca / sum, rab * rbc / sum, rbc * rca / sum
         end
     }),
 
@@ -332,9 +327,75 @@ local calculators = {
         calculate = function(values)
             local ra, rb, rc = values[1], values[2], values[3]
             local productSum = ra * rb + rb * rc + rc * ra
-            return productSum / rc,
-                productSum / ra,
-                productSum / rb
+            return productSum / rc, productSum / ra, productSum / rb
+        end
+    }),
+
+    voltageToCurrentSource = Calculator.new({
+        title = "Voltage to Current Source",
+        subtitle = "Series voltage source to parallel current source",
+        inputs = {
+            {label = "Voltage source", unit = "V"},
+            {label = "Series resistance", unit = "ohm"}
+        },
+        outputs = {
+            {label = "Current source", unit = "A"},
+            {label = "Parallel resistance", unit = "ohm"}
+        },
+        validate = validatePositiveEquivalentResistance,
+        calculate = function(values)
+            return values[1] / values[2], values[2]
+        end
+    }),
+
+    currentToVoltageSource = Calculator.new({
+        title = "Current to Voltage Source",
+        subtitle = "Parallel current source to series voltage source",
+        inputs = {
+            {label = "Current source", unit = "A"},
+            {label = "Parallel resistance", unit = "ohm"}
+        },
+        outputs = {
+            {label = "Voltage source", unit = "V"},
+            {label = "Series resistance", unit = "ohm"}
+        },
+        validate = validatePositiveEquivalentResistance,
+        calculate = function(values)
+            return values[1] * values[2], values[2]
+        end
+    }),
+
+    theveninToNorton = Calculator.new({
+        title = "Thevenin to Norton",
+        subtitle = "Convert V_th and R_th to I_N and R_N",
+        inputs = {
+            {label = "V_th", unit = "V"},
+            {label = "R_th", unit = "ohm"}
+        },
+        outputs = {
+            {label = "I_N", unit = "A"},
+            {label = "R_N", unit = "ohm"}
+        },
+        validate = validatePositiveEquivalentResistance,
+        calculate = function(values)
+            return values[1] / values[2], values[2]
+        end
+    }),
+
+    nortonToThevenin = Calculator.new({
+        title = "Norton to Thevenin",
+        subtitle = "Convert I_N and R_N to V_th and R_th",
+        inputs = {
+            {label = "I_N", unit = "A"},
+            {label = "R_N", unit = "ohm"}
+        },
+        outputs = {
+            {label = "V_th", unit = "V"},
+            {label = "R_th", unit = "ohm"}
+        },
+        validate = validatePositiveEquivalentResistance,
+        calculate = function(values)
+            return values[1] * values[2], values[2]
         end
     })
 }
@@ -383,13 +444,30 @@ local resistorNetworksMenu = {
     }
 }
 
+local sourceTransformationMenu = {
+    title = "Source Transformation",
+    subtitle = "Choose the source conversion direction",
+    items = {
+        {label = "Voltage to Current", calculator = "voltageToCurrentSource"},
+        {label = "Current to Voltage", calculator = "currentToVoltageSource"}
+    }
+}
+
+local equivalentConversionMenu = {
+    title = "Thevenin and Norton",
+    subtitle = "Choose the equivalent conversion direction",
+    items = {
+        {label = "Thevenin to Norton", calculator = "theveninToNorton"},
+        {label = "Norton to Thevenin", calculator = "nortonToThevenin"}
+    }
+}
+
 local networkTheoremsMenu = {
     title = "Network Theorems",
-    subtitle = "More tools coming soon",
+    subtitle = "Source and equivalent-circuit conversions",
     items = {
-        {label = "Thevenin Equivalent"},
-        {label = "Norton Equivalent"},
-        {label = "Source Transformation"}
+        {label = "Thevenin / Norton", menu = equivalentConversionMenu},
+        {label = "Source Transformation", menu = sourceTransformationMenu}
     }
 }
 
@@ -424,9 +502,7 @@ end
 
 local function menuLabels(menu)
     local labels = {}
-    for i, item in ipairs(menu.items) do
-        labels[i] = item.label
-    end
+    for i, item in ipairs(menu.items) do labels[i] = item.label end
     return labels
 end
 
@@ -450,7 +526,6 @@ function on.paint(gc)
         activeCalculator:draw(gc)
         return
     end
-
     local frame = currentFrame()
     Menu.draw(gc, frame.menu.title, menuLabels(frame.menu), frame.selected, frame.menu.subtitle)
 end
@@ -466,11 +541,7 @@ function on.arrowKey(key)
 end
 
 function on.enterKey()
-    if activeCalculator then
-        activeCalculator:enter()
-    else
-        openSelectedMenuItem()
-    end
+    if activeCalculator then activeCalculator:enter() else openSelectedMenuItem() end
     platform.window:invalidate()
 end
 
