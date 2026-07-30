@@ -278,6 +278,41 @@ local calculators = {
             local r2 = values[3]
             return inputVoltage * r2 / (r1 + r2)
         end
+    }),
+
+    currentDivider = Calculator.new({
+        title = "Current Divider",
+        subtitle = "R1 and R2 are parallel branches",
+        inputs = {
+            {label = "Input current", unit = "A"},
+            {label = "R1", unit = "ohm"},
+            {label = "R2", unit = "ohm"}
+        },
+        outputs = {
+            {label = "Current through R1", unit = "A"},
+            {label = "Current through R2", unit = "A"}
+        },
+        validate = function(values)
+            local r1 = values[2]
+            local r2 = values[3]
+
+            if r1 < 0 or r2 < 0 then
+                return "Resistance cannot be negative"
+            end
+
+            if r1 + r2 == 0 then
+                return "Total resistance cannot be zero"
+            end
+        end,
+        calculate = function(values)
+            local inputCurrent = values[1]
+            local r1 = values[2]
+            local r2 = values[3]
+            local totalResistance = r1 + r2
+
+            return inputCurrent * r2 / totalResistance,
+                inputCurrent * r1 / totalResistance
+        end
     })
 }
 
@@ -311,7 +346,7 @@ local basicCircuitsMenu = {
         {label = "Ohm's Law", calculator = "ohmsLaw"},
         {label = "Electrical Power", calculator = "electricalPower"},
         {label = "Voltage Divider", calculator = "voltageDivider"},
-        {label = "Current Divider"}
+        {label = "Current Divider", calculator = "currentDivider"}
     }
 }
 
