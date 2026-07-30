@@ -17,11 +17,13 @@ mkdir -p "$DIST"
 cat \
   "$ROOT/src/libraries/complex.lua" \
   "$ROOT/src/libraries/vectors.lua" \
+  "$ROOT/src/libraries/coordinates.lua" \
   "$ROOT/src/ui/menu.lua" \
   "$ROOT/src/ui/calculator.lua" \
   "$ROOT/src/calculators/complex.lua" \
   "$ROOT/src/calculators/circuits.lua" \
   "$ROOT/src/calculators/electromagnetics.lua" \
+  "$ROOT/src/calculators/coordinates.lua" \
   "$ROOT/src/main.lua" \
   > "$BUNDLE"
 
