@@ -123,10 +123,22 @@ local generalMathMenu = {
     }
 }
 
+local electrostaticsMenu = {
+    title = "Electrostatics", subtitle = "Charges, fields, flux, and capacitance",
+    items = {
+        {label = "Coulomb's Law", calculator = "coulombsLaw"},
+        {label = "Point-Charge Electric Field", calculator = "pointChargeField"},
+        {label = "Electric Potential", calculator = "pointChargePotential"},
+        {label = "Force on a Charge", calculator = "forceOnCharge"},
+        {label = "Gauss's Law", calculator = "gaussLaw"},
+        {label = "Parallel-Plate Capacitance", calculator = "parallelPlateCapacitance"}
+    }
+}
+
 local electromagneticsMenu = {
     title = "Electromagnetics", subtitle = "ECE 216 tools",
     items = {
-        {label = "Electrostatics"},
+        {label = "Electrostatics", menu = electrostaticsMenu},
         {label = "Magnetostatics"},
         {label = "Waves"},
         {label = "Transmission Lines"}
