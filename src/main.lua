@@ -17,6 +17,17 @@ function complex.rectToPolar(re, im)
     return complex.magnitude(re, im), complex.phase(re, im)
 end
 
+function complex.polarToRect(magnitude, angleDegrees)
+    local angleRadians = angleDegrees * math.pi / 180
+
+    local realPart =
+        magnitude * math.cos(angleRadians)
+
+    local imaginaryPart =
+        magnitude * math.sin(angleRadians)
+
+    return realPart, imaginaryPart
+end
 
 local screens = {
     main = {
@@ -54,6 +65,14 @@ local rectToPolar = {
     errorMessage = nil
 }
 
+local polarToRect = {
+    selectedField = 1,
+    magnitudeText = "",
+    angleText = "",
+    realPart = nil,
+    imaginaryPart = nil,
+    errorMessage = nil
+}
 
 local function drawMenu(gc)
     local width = platform.window:width()
@@ -189,6 +208,81 @@ local function drawRectToPolar(gc)
 end
 
 
+local function drawPolarToRect(gc)
+    local width = platform.window:width()
+
+    gc:setFont("sansserif", "b", 14)
+    gc:drawString(
+        "Polar to Rectangular",
+        width / 2,
+        15,
+        "middle"
+    )
+
+    gc:setFont("sansserif", "r", 9)
+    gc:drawString(
+        "Angle is entered in degrees",
+        width / 2,
+        38,
+        "middle"
+    )
+
+    drawInputField(
+        gc,
+        "Magnitude:",
+        polarToRect.magnitudeText,
+        65,
+        polarToRect.selectedField == 1
+    )
+
+    drawInputField(
+        gc,
+        "Angle:",
+        polarToRect.angleText,
+        95,
+        polarToRect.selectedField == 2
+    )
+
+    if polarToRect.errorMessage then
+        gc:setFont("sansserif", "b", 10)
+        gc:drawString(
+            polarToRect.errorMessage,
+            width / 2,
+            130,
+            "middle"
+        )
+    end
+
+    if polarToRect.realPart ~= nil then
+        gc:setFont("sansserif", "b", 11)
+
+        gc:drawString(
+            "Real part: " ..
+            string.format("%.4f", polarToRect.realPart),
+            25,
+            145,
+            "top"
+        )
+
+        gc:drawString(
+            "Imaginary part: " ..
+            string.format("%.4f", polarToRect.imaginaryPart),
+            25,
+            175,
+            "top"
+        )
+    end
+
+    gc:setFont("sansserif", "r", 9)
+    gc:drawString(
+        "Esc: back   Del: erase",
+        width / 2,
+        210,
+        "middle"
+    )
+end
+
+
 local function calculateRectToPolar()
     local realValue = tonumber(rectToPolar.realText)
     local imaginaryValue = tonumber(rectToPolar.imaginaryText)
@@ -208,9 +302,49 @@ local function calculateRectToPolar()
 end
 
 
+local function calculatePolarToRect()
+    local magnitudeValue =
+        tonumber(polarToRect.magnitudeText)
+
+    local angleValue =
+        tonumber(polarToRect.angleText)
+
+    if magnitudeValue == nil or angleValue == nil then
+        polarToRect.errorMessage =
+            "Enter two valid numbers"
+
+        polarToRect.realPart = nil
+        polarToRect.imaginaryPart = nil
+        return
+    end
+
+    if magnitudeValue < 0 then
+        polarToRect.errorMessage =
+            "Magnitude cannot be negative"
+
+        polarToRect.realPart = nil
+        polarToRect.imaginaryPart = nil
+        return
+    end
+
+    polarToRect.realPart,
+    polarToRect.imaginaryPart =
+        complex.polarToRect(
+            magnitudeValue,
+            angleValue
+        )
+
+    polarToRect.errorMessage = nil
+end
+
+
 function on.paint(gc)
     if currentScreen == "rectToPolar" then
         drawRectToPolar(gc)
+
+    elseif currentScreen == "polarToRect" then
+        drawPolarToRect(gc)
+
     else
         drawMenu(gc)
     end
@@ -229,7 +363,20 @@ function on.arrowKey(key)
 
         platform.window:invalidate()
         return
-    end
+
+    elseif currentScreen == "polarToRect" then
+        if key == "up" or key == "down" then
+            if polarToRect.selectedField == 1 then
+                polarToRect.selectedField = 2
+            else
+                polarToRect.selectedField = 1
+            end
+        end
+
+        platform.window:invalidate()
+        return
+end
+    
 
     local itemCount = #screens[currentScreen].items
 
@@ -269,6 +416,16 @@ function on.enterKey()
             rectToPolar.magnitude = nil
             rectToPolar.angle = nil
             rectToPolar.errorMessage = nil
+
+        elseif selectedItem == 2 then
+            currentScreen = "polarToRect"
+
+            polarToRect.selectedField = 1
+            polarToRect.magnitudeText = ""
+            polarToRect.angleText = ""
+            polarToRect.realPart = nil
+            polarToRect.imaginaryPart = nil
+            polarToRect.errorMessage = nil
         end
 
     elseif currentScreen == "rectToPolar" then
@@ -277,6 +434,13 @@ function on.enterKey()
         else
             calculateRectToPolar()
         end
+
+    elseif currentScreen == "polarToRect" then
+        if polarToRect.selectedField == 1 then
+            polarToRect.selectedField = 2
+        else
+            calculatePolarToRect()
+        end
     end
 
     platform.window:invalidate()
@@ -284,7 +448,8 @@ end
 
 
 function on.charIn(character)
-    if currentScreen ~= "rectToPolar" then
+    if currentScreen ~= "rectToPolar"
+        and currentScreen ~= "polarToRect" then
         return
     end
 
@@ -301,45 +466,76 @@ function on.charIn(character)
         return
     end
 
-    if rectToPolar.selectedField == 1 then
-        rectToPolar.realText =
-            rectToPolar.realText .. character
-    else
-        rectToPolar.imaginaryText =
-            rectToPolar.imaginaryText .. character
-    end
+    if currentScreen == "rectToPolar" then
+        if rectToPolar.selectedField == 1 then
+            rectToPolar.realText =
+                rectToPolar.realText .. character
+        else
+            rectToPolar.imaginaryText =
+                rectToPolar.imaginaryText .. character
+        end
 
-    rectToPolar.magnitude = nil
-    rectToPolar.angle = nil
-    rectToPolar.errorMessage = nil
+        rectToPolar.magnitude = nil
+        rectToPolar.angle = nil
+        rectToPolar.errorMessage = nil
+
+    elseif currentScreen == "polarToRect" then
+        if polarToRect.selectedField == 1 then
+            polarToRect.magnitudeText =
+                polarToRect.magnitudeText .. character
+        else
+            polarToRect.angleText =
+                polarToRect.angleText .. character
+        end
+
+        polarToRect.realPart = nil
+        polarToRect.imaginaryPart = nil
+        polarToRect.errorMessage = nil
+    end
 
     platform.window:invalidate()
 end
 
 
 function on.backspaceKey()
-    if currentScreen ~= "rectToPolar" then
+    if currentScreen == "rectToPolar" then
+        if rectToPolar.selectedField == 1 then
+            rectToPolar.realText =
+                string.sub(rectToPolar.realText, 1, -2)
+        else
+            rectToPolar.imaginaryText =
+                string.sub(rectToPolar.imaginaryText, 1, -2)
+        end
+
+        rectToPolar.magnitude = nil
+        rectToPolar.angle = nil
+        rectToPolar.errorMessage = nil
+
+    elseif currentScreen == "polarToRect" then
+        if polarToRect.selectedField == 1 then
+            polarToRect.magnitudeText =
+                string.sub(polarToRect.magnitudeText, 1, -2)
+        else
+            polarToRect.angleText =
+                string.sub(polarToRect.angleText, 1, -2)
+        end
+
+        polarToRect.realPart = nil
+        polarToRect.imaginaryPart = nil
+        polarToRect.errorMessage = nil
+
+    else
         return
     end
-
-    if rectToPolar.selectedField == 1 then
-        rectToPolar.realText =
-            string.sub(rectToPolar.realText, 1, -2)
-    else
-        rectToPolar.imaginaryText =
-            string.sub(rectToPolar.imaginaryText, 1, -2)
-    end
-
-    rectToPolar.magnitude = nil
-    rectToPolar.angle = nil
-    rectToPolar.errorMessage = nil
 
     platform.window:invalidate()
 end
 
 
 function on.escapeKey()
-    if currentScreen == "rectToPolar" then
+    if currentScreen == "rectToPolar"
+        or currentScreen == "polarToRect" then
+
         currentScreen = "complex"
         selectedItem = 1
 
