@@ -1,33 +1,19 @@
 # TI-Nspire Engineering Toolbox
 
-A Lua-based engineering toolbox for the original TI-Nspire CX.
+An open-source engineering toolbox for the TI-Nspire CX.
 
-## Requirements
+## Features
 
-- TI-Nspire CX running OS 3.0.2 or newer
-- macOS command-line tools (`xcode-select --install`)
-- Git
-- Homebrew and zlib if Luna does not compile with the system zlib
-- TI-Nspire Computer Link for transferring the generated `.tns` file
+- Complex Numbers
+- Circuit Analysis
+- Linear Algebra
+- Signals and Systems
+- General Math
 
-## First-time setup
+## Development
 
-```bash
-xcode-select --install
-brew install zlib
-./setup-luna.sh
-```
+Written in Lua and compiled into `.tns` documents for the TI-Nspire CX.
 
-## Build
+## Status
 
-```bash
-./build.sh
-```
-
-The calculator-ready document is created at:
-
-```text
-dist/engineering_toolbox.tns
-```
-
-Upload that file with TI-Nspire Computer Link.
+🚧 Currently under development.
