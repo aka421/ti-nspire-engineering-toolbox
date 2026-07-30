@@ -39,13 +39,19 @@ local menus = {
         title = "Circuit Analysis",
         subtitle = "Enter to select, Esc to return",
         items = {
-            "Ohm's Law"
+            "Ohm's Law",
+            "Electrical Power"
         }
     }
 }
 
 local function degrees(value)
     return string.format("%.4f degrees", value)
+end
+
+local function approximatelyEqual(a, b)
+    local scale = math.max(1, math.abs(a), math.abs(b))
+    return math.abs(a - b) <= 1e-7 * scale
 end
 
 local function arithmeticInputs()
@@ -68,6 +74,13 @@ local ohmsLawVariables = {
     [1] = {label = "Voltage", unit = "V"},
     [2] = {label = "Current", unit = "A"},
     [3] = {label = "Resistance", unit = "ohm"}
+}
+
+local powerVariables = {
+    [1] = {label = "Voltage", unit = "V"},
+    [2] = {label = "Current", unit = "A"},
+    [3] = {label = "Resistance", unit = "ohm"},
+    [4] = {label = "Power", unit = "W"}
 }
 
 local calculators = {
@@ -202,6 +215,80 @@ local calculators = {
                 return values[1] / values[2]
             end
         end
+    }),
+
+    electricalPower = Calculator.new({
+        title = "Electrical Power",
+        subtitle = "Leave exactly one field blank",
+        allowOneBlank = true,
+        inputs = {
+            powerVariables[1],
+            powerVariables[2],
+            powerVariables[3],
+            powerVariables[4]
+        },
+        outputs = {
+            {label = "Result"}
+        },
+        resolveOutputs = function(values, missing)
+            return {powerVariables[missing]}
+        end,
+        validate = function(values, missing)
+            local voltage = values[1]
+            local current = values[2]
+            local resistance = values[3]
+            local power = values[4]
+
+            if resistance and resistance < 0 then
+                return "Resistance cannot be negative"
+            end
+
+            if power and power < 0 then
+                return "Power cannot be negative"
+            end
+
+            if missing == 1 then
+                if not approximatelyEqual(power, current * current * resistance) then
+                    return "I, R, and P are inconsistent"
+                end
+            elseif missing == 2 then
+                if resistance == 0 then
+                    return "Resistance cannot be zero"
+                end
+                if not approximatelyEqual(power, voltage * voltage / resistance) then
+                    return "V, R, and P are inconsistent"
+                end
+            elseif missing == 3 then
+                if current == 0 then
+                    return "Current cannot be zero"
+                end
+                if not approximatelyEqual(power, voltage * current) then
+                    return "V, I, and P are inconsistent"
+                end
+                if voltage / current < 0 then
+                    return "Resistance cannot be negative"
+                end
+            else
+                if not approximatelyEqual(voltage, current * resistance) then
+                    return "V, I, and R are inconsistent"
+                end
+            end
+        end,
+        calculate = function(values, missing)
+            local voltage = values[1]
+            local current = values[2]
+            local resistance = values[3]
+
+            if missing == 1 then
+                return current * resistance
+            elseif missing == 2 then
+                return voltage / resistance
+            elseif missing == 3 then
+                return voltage / current
+            else
+                return voltage * current
+            end
+        end
     })
 }
 
@@ -219,7 +306,8 @@ local arithmeticRoutes = {
 }
 
 local circuitRoutes = {
-    [1] = "ohmsLaw"
+    [1] = "ohmsLaw",
+    [2] = "electricalPower"
 }
 
 local currentScreen = "main"
