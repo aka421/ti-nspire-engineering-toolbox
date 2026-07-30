@@ -67,6 +67,8 @@ function Calculator.new(definition)
         calculateValues = definition.calculate,
         validate = definition.validate,
         allowOneBlank = definition.allowOneBlank or false,
+        allowOptionalInputs = definition.allowOptionalInputs or false,
+        minimumInputs = definition.minimumInputs or 1,
         selectedField = 1,
         values = makeEmptyValues(#definition.inputs),
         results = nil,
@@ -127,9 +129,14 @@ function Calculator:draw(gc)
 
     drawCenteredFitted(gc, self.title, 8, true, 14, 10)
 
-    local defaultSubtitle = self.allowOneBlank
-        and "Leave one value blank, then press Enter"
-        or "Type a value, then press Enter"
+    local defaultSubtitle
+    if self.allowOneBlank then
+        defaultSubtitle = "Leave one value blank, then press Enter"
+    elseif self.allowOptionalInputs then
+        defaultSubtitle = "Enter values; unused fields may stay blank"
+    else
+        defaultSubtitle = "Type a value, then press Enter"
+    end
     drawCenteredFitted(gc, self.subtitle or defaultSubtitle, 32, false, 9, 7)
 
     for i, input in ipairs(self.inputs) do
@@ -176,10 +183,11 @@ function Calculator:moveField(key)
     end
 end
 
-local function parseValues(textValues, allowOneBlank)
+local function parseValues(textValues, allowOneBlank, allowOptionalInputs, minimumInputs)
     local numbers = {}
     local missing = nil
     local blankCount = 0
+    local enteredCount = 0
 
     for i, text in ipairs(textValues) do
         if text == "" then
@@ -191,12 +199,17 @@ local function parseValues(textValues, allowOneBlank)
             if numbers[i] == nil then
                 return nil, nil, "Enter valid numbers"
             end
+            enteredCount = enteredCount + 1
         end
     end
 
     if allowOneBlank then
         if blankCount ~= 1 then
             return nil, nil, "Leave exactly one value blank"
+        end
+    elseif allowOptionalInputs then
+        if enteredCount < minimumInputs then
+            return nil, nil, "Enter at least " .. minimumInputs .. " values"
         end
     elseif blankCount > 0 then
         return nil, nil, "Complete every input"
@@ -211,7 +224,12 @@ function Calculator:enter()
         return
     end
 
-    local numbers, missing, parseError = parseValues(self.values, self.allowOneBlank)
+    local numbers, missing, parseError = parseValues(
+        self.values,
+        self.allowOneBlank,
+        self.allowOptionalInputs,
+        self.minimumInputs
+    )
     if parseError then
         self.errorMessage = parseError
         self.results = nil
