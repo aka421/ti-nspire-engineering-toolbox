@@ -34,6 +34,13 @@ local menus = {
             "Multiply",
             "Divide"
         }
+    },
+    circuits = {
+        title = "Circuit Analysis",
+        subtitle = "Enter to select, Esc to return",
+        items = {
+            "Ohm's Law"
+        }
     }
 }
 
@@ -57,6 +64,12 @@ local function arithmeticOutputs()
     }
 end
 
+local ohmsLawVariables = {
+    [1] = {label = "Voltage", unit = "V"},
+    [2] = {label = "Current", unit = "A"},
+    [3] = {label = "Resistance", unit = "ohm"}
+}
+
 local calculators = {
     rectToPolar = Calculator.new({
         title = "Rectangular to Polar",
@@ -78,7 +91,7 @@ local calculators = {
         subtitle = "Angle is entered in degrees",
         inputs = {
             {label = "Magnitude"},
-            {label = "Angle"}
+            {label = "Angle", unit = "degrees"}
         },
         outputs = {
             {label = "Real part"},
@@ -153,6 +166,44 @@ local calculators = {
         calculate = function(values)
             return complex.divide(values[1], values[2], values[3], values[4])
         end
+    }),
+
+    ohmsLaw = Calculator.new({
+        title = "Ohm's Law",
+        allowOneBlank = true,
+        inputs = {
+            ohmsLawVariables[1],
+            ohmsLawVariables[2],
+            ohmsLawVariables[3]
+        },
+        outputs = {
+            {label = "Result"}
+        },
+        resolveOutputs = function(values, missing)
+            return {ohmsLawVariables[missing]}
+        end,
+        validate = function(values, missing)
+            if missing == 1 then
+                return nil
+            elseif missing == 2 and values[3] == 0 then
+                return "Resistance cannot be zero"
+            elseif missing == 3 and values[2] == 0 then
+                return "Current cannot be zero"
+            end
+
+            if values[3] and values[3] < 0 then
+                return "Resistance cannot be negative"
+            end
+        end,
+        calculate = function(values, missing)
+            if missing == 1 then
+                return values[2] * values[3]
+            elseif missing == 2 then
+                return values[1] / values[3]
+            else
+                return values[1] / values[2]
+            end
+        end
     })
 }
 
@@ -167,6 +218,10 @@ local arithmeticRoutes = {
     [2] = "complexSubtract",
     [3] = "complexMultiply",
     [4] = "complexDivide"
+}
+
+local circuitRoutes = {
+    [1] = "ohmsLaw"
 }
 
 local currentScreen = "main"
@@ -206,6 +261,9 @@ function on.enterKey()
         if selectedItem == 1 then
             currentScreen = "complex"
             selectedItem = 1
+        elseif selectedItem == 2 then
+            currentScreen = "circuits"
+            selectedItem = 1
         end
     elseif currentScreen == "complex" then
         if selectedItem == 4 then
@@ -221,6 +279,11 @@ function on.enterKey()
         local route = arithmeticRoutes[selectedItem]
         if route then
             openCalculator(route, "complexArithmetic")
+        end
+    elseif currentScreen == "circuits" then
+        local route = circuitRoutes[selectedItem]
+        if route then
+            openCalculator(route, "circuits")
         end
     elseif currentScreen == "calculator" then
         activeCalculator:enter()
@@ -251,9 +314,9 @@ function on.escapeKey()
     elseif currentScreen == "complexArithmetic" then
         currentScreen = "complex"
         selectedItem = 4
-    elseif currentScreen == "complex" then
+    elseif currentScreen == "complex" or currentScreen == "circuits" then
         currentScreen = "main"
-        selectedItem = 1
+        selectedItem = currentScreen == "complex" and 1 or 2
     end
 
     platform.window:invalidate()
