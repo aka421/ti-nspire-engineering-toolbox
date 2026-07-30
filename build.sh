@@ -21,6 +21,7 @@ cat \
   "$ROOT/src/libraries/coordinates.lua" \
   "$ROOT/src/ui/menu.lua" \
   "$ROOT/src/ui/calculator.lua" \
+  "$ROOT/src/ui/history.lua" \
   "$ROOT/src/calculators/complex.lua" \
   "$ROOT/src/calculators/circuits.lua" \
   "$ROOT/src/calculators/electromagnetics.lua" \
