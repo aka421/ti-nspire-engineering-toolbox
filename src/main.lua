@@ -112,12 +112,19 @@ local vectorOperationsMenu = {
     }
 }
 
+local generalMathMenu = {
+    title = "General Math",
+    subtitle = "Reusable mathematical tools",
+    items = {
+        {label = "Vector Operations", menu = vectorOperationsMenu},
+        {label = "Coordinate Systems"}
+    }
+}
+
 local electromagneticsMenu = {
     title = "Electromagnetics",
     subtitle = "ECE 216 tools",
     items = {
-        {label = "Vector Operations", menu = vectorOperationsMenu},
-        {label = "Coordinate Systems"},
         {label = "Electrostatics"},
         {label = "Magnetostatics"},
         {label = "Waves"},
@@ -134,7 +141,7 @@ local rootMenu = {
         {label = "Electromagnetics", menu = electromagneticsMenu},
         {label = "Linear Algebra"},
         {label = "Signals and Systems"},
-        {label = "General Math"}
+        {label = "General Math", menu = generalMathMenu}
     }
 }
 
