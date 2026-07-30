@@ -10,8 +10,7 @@ registerElectromagneticsCalculators(calculators)
 registerCoordinateCalculators(calculators)
 
 local complexArithmeticMenu = {
-    title = "Complex Arithmetic",
-    subtitle = "Choose an operation",
+    title = "Complex Arithmetic", subtitle = "Choose an operation",
     items = {
         {label = "Add", calculator = "complexAdd"},
         {label = "Subtract", calculator = "complexSubtract"},
@@ -21,8 +20,7 @@ local complexArithmeticMenu = {
 }
 
 local complexMenu = {
-    title = "Complex Numbers",
-    subtitle = "Enter to select, Esc to return",
+    title = "Complex Numbers", subtitle = "Enter to select, Esc to return",
     items = {
         {label = "Rectangular to Polar", calculator = "rectToPolar"},
         {label = "Polar to Rectangular", calculator = "polarToRect"},
@@ -32,8 +30,7 @@ local complexMenu = {
 }
 
 local basicCircuitsMenu = {
-    title = "Basic Circuits",
-    subtitle = "Enter to select, Esc to return",
+    title = "Basic Circuits", subtitle = "Enter to select, Esc to return",
     items = {
         {label = "Ohm's Law", calculator = "ohmsLaw"},
         {label = "Electrical Power", calculator = "electricalPower"},
@@ -43,8 +40,7 @@ local basicCircuitsMenu = {
 }
 
 local resistorNetworksMenu = {
-    title = "Resistor Networks",
-    subtitle = "Equivalent resistance and conversions",
+    title = "Resistor Networks", subtitle = "Equivalent resistance and conversions",
     items = {
         {label = "Series Resistance", calculator = "seriesResistance"},
         {label = "Parallel Resistance", calculator = "parallelResistance"},
@@ -54,8 +50,7 @@ local resistorNetworksMenu = {
 }
 
 local sourceTransformationMenu = {
-    title = "Source Transformation",
-    subtitle = "Choose the source conversion direction",
+    title = "Source Transformation", subtitle = "Choose the source conversion direction",
     items = {
         {label = "Voltage to Current", calculator = "voltageToCurrentSource"},
         {label = "Current to Voltage", calculator = "currentToVoltageSource"}
@@ -63,8 +58,7 @@ local sourceTransformationMenu = {
 }
 
 local equivalentConversionMenu = {
-    title = "Thevenin and Norton",
-    subtitle = "Choose the equivalent conversion direction",
+    title = "Thevenin and Norton", subtitle = "Choose the equivalent conversion direction",
     items = {
         {label = "Thevenin to Norton", calculator = "theveninToNorton"},
         {label = "Norton to Thevenin", calculator = "nortonToThevenin"}
@@ -72,8 +66,7 @@ local equivalentConversionMenu = {
 }
 
 local networkTheoremsMenu = {
-    title = "Network Theorems",
-    subtitle = "Source and equivalent-circuit conversions",
+    title = "Network Theorems", subtitle = "Source and equivalent-circuit conversions",
     items = {
         {label = "Thevenin / Norton", menu = equivalentConversionMenu},
         {label = "Source Transformation", menu = sourceTransformationMenu}
@@ -81,8 +74,7 @@ local networkTheoremsMenu = {
 }
 
 local equationSolversMenu = {
-    title = "Equation Solvers",
-    subtitle = "Solve circuit equation systems",
+    title = "Equation Solvers", subtitle = "Solve circuit equation systems",
     items = {
         {label = "Two-Mesh Solver", calculator = "meshTwo"},
         {label = "Three-Mesh Solver"}
@@ -90,8 +82,7 @@ local equationSolversMenu = {
 }
 
 local circuitMenu = {
-    title = "Circuit Analysis",
-    subtitle = "Choose a category",
+    title = "Circuit Analysis", subtitle = "Choose a category",
     items = {
         {label = "Basic Circuits", menu = basicCircuitsMenu},
         {label = "Resistor Networks", menu = resistorNetworksMenu},
@@ -101,8 +92,7 @@ local circuitMenu = {
 }
 
 local vectorOperationsMenu = {
-    title = "Vector Operations",
-    subtitle = "Three-dimensional Cartesian vectors",
+    title = "Vector Operations", subtitle = "Three-dimensional Cartesian vectors",
     items = {
         {label = "Magnitude", calculator = "vectorMagnitude"},
         {label = "Unit Vector", calculator = "vectorUnit"},
@@ -114,8 +104,7 @@ local vectorOperationsMenu = {
 }
 
 local coordinateSystemsMenu = {
-    title = "Coordinate Systems",
-    subtitle = "Points and vector components",
+    title = "Coordinate Systems", subtitle = "Points and vector components",
     items = {
         {label = "Cartesian to Cylindrical", calculator = "cartesianToCylindrical"},
         {label = "Cylindrical to Cartesian", calculator = "cylindricalToCartesian"},
@@ -127,8 +116,7 @@ local coordinateSystemsMenu = {
 }
 
 local generalMathMenu = {
-    title = "General Math",
-    subtitle = "Reusable mathematical tools",
+    title = "General Math", subtitle = "Reusable mathematical tools",
     items = {
         {label = "Vector Operations", menu = vectorOperationsMenu},
         {label = "Coordinate Systems", menu = coordinateSystemsMenu}
@@ -136,8 +124,7 @@ local generalMathMenu = {
 }
 
 local electromagneticsMenu = {
-    title = "Electromagnetics",
-    subtitle = "ECE 216 tools",
+    title = "Electromagnetics", subtitle = "ECE 216 tools",
     items = {
         {label = "Electrostatics"},
         {label = "Magnetostatics"},
@@ -147,9 +134,9 @@ local electromagneticsMenu = {
 }
 
 local rootMenu = {
-    title = "Engineering Toolbox",
-    subtitle = "Use arrows and Enter",
+    title = "Engineering Toolbox", subtitle = "Use arrows and Enter",
     items = {
+        {label = "History", special = "history"},
         {label = "Complex Numbers", menu = complexMenu},
         {label = "Circuit Analysis", menu = circuitMenu},
         {label = "Electromagnetics", menu = electromagneticsMenu},
@@ -161,6 +148,8 @@ local rootMenu = {
 
 local menuStack = {{menu = rootMenu, selected = 1}}
 local activeCalculator = nil
+local historyView = HistoryView.new()
+local showingHistory = false
 
 local function currentFrame()
     return menuStack[#menuStack]
@@ -172,9 +161,26 @@ local function menuLabels(menu)
     return labels
 end
 
-local function openCalculator(name)
+local function openCalculator(name, expressions)
     activeCalculator = calculators[name]
+    if not activeCalculator then return false end
     activeCalculator:reset()
+    if expressions then
+        for i = 1, math.min(#expressions, #activeCalculator.values) do
+            activeCalculator.values[i] = expressions[i] or ""
+        end
+    end
+    return true
+end
+
+local function reopenHistoryEntry(entry)
+    if not entry then return end
+    for name, calculator in pairs(calculators) do
+        if calculator.title == entry.title and openCalculator(name, entry.expressions) then
+            showingHistory = false
+            return
+        end
+    end
 end
 
 local function openSelectedMenuItem()
@@ -184,21 +190,28 @@ local function openSelectedMenuItem()
         menuStack[#menuStack + 1] = {menu = item.menu, selected = 1}
     elseif item.calculator then
         openCalculator(item.calculator)
+    elseif item.special == "history" then
+        historyView:reset()
+        showingHistory = true
     end
 end
 
 function on.paint(gc)
     if activeCalculator then
         activeCalculator:draw(gc)
-        return
+    elseif showingHistory then
+        historyView:draw(gc)
+    else
+        local frame = currentFrame()
+        Menu.draw(gc, frame.menu.title, menuLabels(frame.menu), frame.selected, frame.menu.subtitle)
     end
-    local frame = currentFrame()
-    Menu.draw(gc, frame.menu.title, menuLabels(frame.menu), frame.selected, frame.menu.subtitle)
 end
 
 function on.arrowKey(key)
     if activeCalculator then
         activeCalculator:moveField(key)
+    elseif showingHistory then
+        historyView:move(key)
     else
         local frame = currentFrame()
         frame.selected = Menu.move(frame.selected, #frame.menu.items, key)
@@ -207,7 +220,13 @@ function on.arrowKey(key)
 end
 
 function on.enterKey()
-    if activeCalculator then activeCalculator:enter() else openSelectedMenuItem() end
+    if activeCalculator then
+        activeCalculator:enter()
+    elseif showingHistory then
+        reopenHistoryEntry(historyView:getSelected())
+    else
+        openSelectedMenuItem()
+    end
     platform.window:invalidate()
 end
 
@@ -221,8 +240,10 @@ end
 function on.backspaceKey()
     if activeCalculator then
         activeCalculator:backspace()
-        platform.window:invalidate()
+    elseif showingHistory then
+        historyView:clear()
     end
+    platform.window:invalidate()
 end
 
 function on.escapeKey()
@@ -233,6 +254,8 @@ function on.escapeKey()
         else
             activeCalculator = nil
         end
+    elseif showingHistory then
+        showingHistory = false
     elseif #menuStack > 1 then
         table.remove(menuStack)
     end
