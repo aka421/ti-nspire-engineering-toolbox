@@ -28,6 +28,22 @@ local function arithmeticOutputs()
     }
 end
 
+local function resistorInputs(count)
+    local inputs = {}
+    for i = 1, count do
+        inputs[i] = {label = "R" .. i, unit = "ohm"}
+    end
+    return inputs
+end
+
+local function eachEnteredValue(values, callback)
+    for i = 1, #values do
+        if values[i] ~= nil then
+            callback(values[i], i)
+        end
+    end
+end
+
 local ohmsLawVariables = {
     [1] = {label = "Voltage", unit = "V"},
     [2] = {label = "Current", unit = "A"},
@@ -44,14 +60,8 @@ local powerVariables = {
 local calculators = {
     rectToPolar = Calculator.new({
         title = "Rectangular to Polar",
-        inputs = {
-            {label = "Real part"},
-            {label = "Imaginary part"}
-        },
-        outputs = {
-            {label = "Magnitude"},
-            {label = "Angle", format = degrees}
-        },
+        inputs = {{label = "Real part"}, {label = "Imaginary part"}},
+        outputs = {{label = "Magnitude"}, {label = "Angle", format = degrees}},
         calculate = function(values)
             return complex.rectToPolar(values[1], values[2])
         end
@@ -60,14 +70,8 @@ local calculators = {
     polarToRect = Calculator.new({
         title = "Polar to Rectangular",
         subtitle = "Angle is entered in degrees",
-        inputs = {
-            {label = "Magnitude"},
-            {label = "Angle", unit = "degrees"}
-        },
-        outputs = {
-            {label = "Real part"},
-            {label = "Imaginary part"}
-        },
+        inputs = {{label = "Magnitude"}, {label = "Angle", unit = "degrees"}},
+        outputs = {{label = "Real part"}, {label = "Imaginary part"}},
         validate = function(values)
             if values[1] < 0 then
                 return "Magnitude cannot be negative"
@@ -80,17 +84,10 @@ local calculators = {
 
     magnitudePhase = Calculator.new({
         title = "Magnitude and Phase",
-        inputs = {
-            {label = "Real part"},
-            {label = "Imaginary part"}
-        },
-        outputs = {
-            {label = "Magnitude"},
-            {label = "Phase", format = degrees}
-        },
+        inputs = {{label = "Real part"}, {label = "Imaginary part"}},
+        outputs = {{label = "Magnitude"}, {label = "Phase", format = degrees}},
         calculate = function(values)
-            return complex.magnitude(values[1], values[2]),
-                complex.phase(values[1], values[2])
+            return complex.magnitude(values[1], values[2]), complex.phase(values[1], values[2])
         end
     }),
 
@@ -142,14 +139,8 @@ local calculators = {
     ohmsLaw = Calculator.new({
         title = "Ohm's Law",
         allowOneBlank = true,
-        inputs = {
-            ohmsLawVariables[1],
-            ohmsLawVariables[2],
-            ohmsLawVariables[3]
-        },
-        outputs = {
-            {label = "Result"}
-        },
+        inputs = {ohmsLawVariables[1], ohmsLawVariables[2], ohmsLawVariables[3]},
+        outputs = {{label = "Result"}},
         resolveOutputs = function(values, missing)
             return {ohmsLawVariables[missing]}
         end,
@@ -157,7 +148,6 @@ local calculators = {
             if values[3] and values[3] < 0 then
                 return "Resistance cannot be negative"
             end
-
             if missing == 2 and values[3] == 0 then
                 return "Resistance cannot be zero"
             elseif missing == 3 and values[2] == 0 then
@@ -169,9 +159,8 @@ local calculators = {
                 return values[2] * values[3]
             elseif missing == 2 then
                 return values[1] / values[3]
-            else
-                return values[1] / values[2]
             end
+            return values[1] / values[2]
         end
     }),
 
@@ -179,73 +168,41 @@ local calculators = {
         title = "Electrical Power",
         subtitle = "Leave exactly one field blank",
         allowOneBlank = true,
-        inputs = {
-            powerVariables[1],
-            powerVariables[2],
-            powerVariables[3],
-            powerVariables[4]
-        },
-        outputs = {
-            {label = "Result"}
-        },
+        inputs = {powerVariables[1], powerVariables[2], powerVariables[3], powerVariables[4]},
+        outputs = {{label = "Result"}},
         resolveOutputs = function(values, missing)
             return {powerVariables[missing]}
         end,
         validate = function(values, missing)
-            local voltage = values[1]
-            local current = values[2]
-            local resistance = values[3]
-            local power = values[4]
-
-            if resistance and resistance < 0 then
-                return "Resistance cannot be negative"
-            end
-
-            if power and power < 0 then
-                return "Power cannot be negative"
-            end
+            local voltage, current, resistance, power = values[1], values[2], values[3], values[4]
+            if resistance and resistance < 0 then return "Resistance cannot be negative" end
+            if power and power < 0 then return "Power cannot be negative" end
 
             if missing == 1 then
                 if not approximatelyEqual(power, current * current * resistance) then
                     return "I, R, and P are inconsistent"
                 end
             elseif missing == 2 then
-                if resistance == 0 then
-                    return "Resistance cannot be zero"
-                end
+                if resistance == 0 then return "Resistance cannot be zero" end
                 if not approximatelyEqual(power, voltage * voltage / resistance) then
                     return "V, R, and P are inconsistent"
                 end
             elseif missing == 3 then
-                if current == 0 then
-                    return "Current cannot be zero"
-                end
+                if current == 0 then return "Current cannot be zero" end
                 if not approximatelyEqual(power, voltage * current) then
                     return "V, I, and P are inconsistent"
                 end
-                if voltage / current < 0 then
-                    return "Resistance cannot be negative"
-                end
-            else
-                if not approximatelyEqual(voltage, current * resistance) then
-                    return "V, I, and R are inconsistent"
-                end
+                if voltage / current < 0 then return "Resistance cannot be negative" end
+            elseif not approximatelyEqual(voltage, current * resistance) then
+                return "V, I, and R are inconsistent"
             end
         end,
         calculate = function(values, missing)
-            local voltage = values[1]
-            local current = values[2]
-            local resistance = values[3]
-
-            if missing == 1 then
-                return current * resistance
-            elseif missing == 2 then
-                return voltage / resistance
-            elseif missing == 3 then
-                return voltage / current
-            else
-                return voltage * current
-            end
+            local voltage, current, resistance = values[1], values[2], values[3]
+            if missing == 1 then return current * resistance end
+            if missing == 2 then return voltage / resistance end
+            if missing == 3 then return voltage / current end
+            return voltage * current
         end
     }),
 
@@ -257,26 +214,14 @@ local calculators = {
             {label = "R1", unit = "ohm"},
             {label = "R2", unit = "ohm"}
         },
-        outputs = {
-            {label = "Output voltage", unit = "V"}
-        },
+        outputs = {{label = "Output voltage", unit = "V"}},
         validate = function(values)
-            local r1 = values[2]
-            local r2 = values[3]
-
-            if r1 < 0 or r2 < 0 then
-                return "Resistance cannot be negative"
-            end
-
-            if r1 + r2 == 0 then
-                return "Total resistance cannot be zero"
-            end
+            local r1, r2 = values[2], values[3]
+            if r1 < 0 or r2 < 0 then return "Resistance cannot be negative" end
+            if r1 + r2 == 0 then return "Total resistance cannot be zero" end
         end,
         calculate = function(values)
-            local inputVoltage = values[1]
-            local r1 = values[2]
-            local r2 = values[3]
-            return inputVoltage * r2 / (r1 + r2)
+            return values[1] * values[3] / (values[2] + values[3])
         end
     }),
 
@@ -293,30 +238,66 @@ local calculators = {
             {label = "Current through R2", unit = "A"}
         },
         validate = function(values)
-            local r1 = values[2]
-            local r2 = values[3]
-
-            if r1 < 0 or r2 < 0 then
-                return "Resistance cannot be negative"
-            end
-
-            if r1 + r2 == 0 then
-                return "Total resistance cannot be zero"
-            end
+            local r1, r2 = values[2], values[3]
+            if r1 < 0 or r2 < 0 then return "Resistance cannot be negative" end
+            if r1 + r2 == 0 then return "Total resistance cannot be zero" end
         end,
         calculate = function(values)
-            local inputCurrent = values[1]
-            local r1 = values[2]
-            local r2 = values[3]
-            local totalResistance = r1 + r2
+            local total = values[2] + values[3]
+            return values[1] * values[3] / total, values[1] * values[2] / total
+        end
+    }),
 
-            return inputCurrent * r2 / totalResistance,
-                inputCurrent * r1 / totalResistance
+    seriesResistance = Calculator.new({
+        title = "Series Resistance",
+        subtitle = "Enter 2 to 5 resistors",
+        allowOptionalInputs = true,
+        minimumInputs = 2,
+        inputs = resistorInputs(5),
+        outputs = {{label = "Equivalent resistance", unit = "ohm"}},
+        validate = function(values)
+            local invalid = false
+            eachEnteredValue(values, function(value)
+                if value < 0 then invalid = true end
+            end)
+            if invalid then return "Resistance cannot be negative" end
+        end,
+        calculate = function(values)
+            local total = 0
+            eachEnteredValue(values, function(value)
+                total = total + value
+            end)
+            return total
+        end
+    }),
+
+    parallelResistance = Calculator.new({
+        title = "Parallel Resistance",
+        subtitle = "Enter 2 to 5 resistors",
+        allowOptionalInputs = true,
+        minimumInputs = 2,
+        inputs = resistorInputs(5),
+        outputs = {{label = "Equivalent resistance", unit = "ohm"}},
+        validate = function(values)
+            local negative = false
+            local zero = false
+            eachEnteredValue(values, function(value)
+                if value < 0 then negative = true end
+                if value == 0 then zero = true end
+            end)
+            if negative then return "Resistance cannot be negative" end
+            if zero then return "Parallel resistance cannot be zero" end
+        end,
+        calculate = function(values)
+            local reciprocalSum = 0
+            eachEnteredValue(values, function(value)
+                reciprocalSum = reciprocalSum + (1 / value)
+            end)
+            return 1 / reciprocalSum
         end
     })
 }
 
--- Menu nodes may contain submenu items, calculator items, or placeholders.
 local complexArithmeticMenu = {
     title = "Complex Arithmetic",
     subtitle = "Choose an operation",
@@ -352,10 +333,10 @@ local basicCircuitsMenu = {
 
 local resistorNetworksMenu = {
     title = "Resistor Networks",
-    subtitle = "More tools coming soon",
+    subtitle = "Equivalent resistance and conversions",
     items = {
-        {label = "Series Resistance"},
-        {label = "Parallel Resistance"},
+        {label = "Series Resistance", calculator = "seriesResistance"},
+        {label = "Parallel Resistance", calculator = "parallelResistance"},
         {label = "Delta to Wye"},
         {label = "Wye to Delta"}
     }
@@ -393,9 +374,7 @@ local rootMenu = {
     }
 }
 
-local menuStack = {
-    {menu = rootMenu, selected = 1}
-}
+local menuStack = {{menu = rootMenu, selected = 1}}
 local activeCalculator = nil
 
 local function currentFrame()
@@ -418,7 +397,6 @@ end
 local function openSelectedMenuItem()
     local frame = currentFrame()
     local item = frame.menu.items[frame.selected]
-
     if item.menu then
         menuStack[#menuStack + 1] = {menu = item.menu, selected = 1}
     elseif item.calculator then
@@ -433,13 +411,7 @@ function on.paint(gc)
     end
 
     local frame = currentFrame()
-    Menu.draw(
-        gc,
-        frame.menu.title,
-        menuLabels(frame.menu),
-        frame.selected,
-        frame.menu.subtitle
-    )
+    Menu.draw(gc, frame.menu.title, menuLabels(frame.menu), frame.selected, frame.menu.subtitle)
 end
 
 function on.arrowKey(key)
@@ -449,7 +421,6 @@ function on.arrowKey(key)
         local frame = currentFrame()
         frame.selected = Menu.move(frame.selected, #frame.menu.items, key)
     end
-
     platform.window:invalidate()
 end
 
@@ -459,7 +430,6 @@ function on.enterKey()
     else
         openSelectedMenuItem()
     end
-
     platform.window:invalidate()
 end
 
@@ -483,6 +453,5 @@ function on.escapeKey()
     elseif #menuStack > 1 then
         table.remove(menuStack)
     end
-
     platform.window:invalidate()
 end
