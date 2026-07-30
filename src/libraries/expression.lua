@@ -1,12 +1,33 @@
 -- Mathematical expression parser for calculator inputs.
--- Supports +, -, *, /, ^, parentheses, constants, and common functions.
+-- Supports arithmetic, common functions, SI suffixes, and Ans.
 
 expression = {}
+
+local ansValue = 0
 
 local constants = {
     pi = math.pi,
     e = math.exp(1)
 }
+
+local siPrefixes = {
+    p = 1e-12,
+    n = 1e-9,
+    u = 1e-6,
+    m = 1e-3,
+    k = 1e3,
+    M = 1e6,
+    G = 1e9,
+    T = 1e12
+}
+
+function expression.setAns(value)
+    if type(value) == "number" then ansValue = value end
+end
+
+function expression.getAns()
+    return ansValue
+end
 
 local function degreesToRadians(value)
     return value * math.pi / 180
@@ -54,11 +75,6 @@ local function parserFor(text)
         end
     end
 
-    function parser:peek()
-        self:skipWhitespace()
-        return string.sub(self.text, self.position, self.position)
-    end
-
     function parser:consume(character)
         self:skipWhitespace()
         if string.sub(self.text, self.position, self.position) == character then
@@ -72,13 +88,15 @@ local function parserFor(text)
         self:skipWhitespace()
         local start = self.position
         local sawDigit = false
+        local sawDecimal = false
 
         while self.position <= self.length do
             local character = string.sub(self.text, self.position, self.position)
             if character >= "0" and character <= "9" then
                 sawDigit = true
                 self.position = self.position + 1
-            elseif character == "." then
+            elseif character == "." and not sawDecimal then
+                sawDecimal = true
                 self.position = self.position + 1
             else
                 break
@@ -103,11 +121,16 @@ local function parserFor(text)
                     break
                 end
             end
-
             if self.position == exponentDigits then self.position = exponentStart end
         end
 
-        return tonumber(string.sub(self.text, start, self.position - 1))
+        local value = tonumber(string.sub(self.text, start, self.position - 1))
+        local prefix = string.sub(self.text, self.position, self.position)
+        if siPrefixes[prefix] then
+            value = value * siPrefixes[prefix]
+            self.position = self.position + 1
+        end
+        return value
     end
 
     function parser:parseIdentifier()
@@ -122,7 +145,7 @@ local function parserFor(text)
             end
         end
         if self.position == start then return nil end
-        return string.lower(string.sub(self.text, start, self.position - 1))
+        return string.sub(self.text, start, self.position - 1)
     end
 
     function parser:parsePrimary()
@@ -137,8 +160,10 @@ local function parserFor(text)
 
         local identifier = self:parseIdentifier()
         if identifier then
-            if constants[identifier] ~= nil then return constants[identifier] end
-            local operation = functions[identifier]
+            local lower = string.lower(identifier)
+            if lower == "ans" then return ansValue end
+            if constants[lower] ~= nil then return constants[lower] end
+            local operation = functions[lower]
             if not operation then error("unknown name") end
             if not self:consume("(") then error("function needs parentheses") end
             local argument = self:parseExpression()
@@ -157,9 +182,7 @@ local function parserFor(text)
 
     function parser:parsePower()
         local value = self:parsePrimary()
-        if self:consume("^") then
-            value = value ^ self:parseUnary()
-        end
+        if self:consume("^") then value = value ^ self:parseUnary() end
         return value
     end
 
@@ -197,9 +220,7 @@ local function parserFor(text)
 end
 
 function expression.evaluate(text)
-    if text == nil or string.match(text, "^%s*$") then
-        return nil, "empty expression"
-    end
+    if text == nil or string.match(text, "^%s*$") then return nil, "empty expression" end
 
     local parser = parserFor(text)
     local ok, value = pcall(function()
