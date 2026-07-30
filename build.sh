@@ -15,6 +15,7 @@ fi
 mkdir -p "$DIST"
 
 cat \
+  "$ROOT/src/libraries/expression.lua" \
   "$ROOT/src/libraries/complex.lua" \
   "$ROOT/src/libraries/vectors.lua" \
   "$ROOT/src/libraries/coordinates.lua" \
