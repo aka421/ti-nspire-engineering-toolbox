@@ -14,18 +14,13 @@ end
 
 local function arithmeticInputs()
     return {
-        {label = "A real"},
-        {label = "A imaginary"},
-        {label = "B real"},
-        {label = "B imaginary"}
+        {label = "A real"}, {label = "A imaginary"},
+        {label = "B real"}, {label = "B imaginary"}
     }
 end
 
 local function arithmeticOutputs()
-    return {
-        {label = "Real part"},
-        {label = "Imaginary part"}
-    }
+    return {{label = "Real part"}, {label = "Imaginary part"}}
 end
 
 local function resistorInputs(count)
@@ -70,9 +65,7 @@ local calculators = {
         title = "Rectangular to Polar",
         inputs = {{label = "Real part"}, {label = "Imaginary part"}},
         outputs = {{label = "Magnitude"}, {label = "Angle", format = degrees}},
-        calculate = function(values)
-            return complex.rectToPolar(values[1], values[2])
-        end
+        calculate = function(v) return complex.rectToPolar(v[1], v[2]) end
     }),
 
     polarToRect = Calculator.new({
@@ -80,340 +73,242 @@ local calculators = {
         subtitle = "Angle is entered in degrees",
         inputs = {{label = "Magnitude"}, {label = "Angle", unit = "degrees"}},
         outputs = {{label = "Real part"}, {label = "Imaginary part"}},
-        validate = function(values)
-            if values[1] < 0 then return "Magnitude cannot be negative" end
+        validate = function(v)
+            if v[1] < 0 then return "Magnitude cannot be negative" end
         end,
-        calculate = function(values)
-            return complex.polarToRect(values[1], values[2])
-        end
+        calculate = function(v) return complex.polarToRect(v[1], v[2]) end
     }),
 
     magnitudePhase = Calculator.new({
         title = "Magnitude and Phase",
         inputs = {{label = "Real part"}, {label = "Imaginary part"}},
         outputs = {{label = "Magnitude"}, {label = "Phase", format = degrees}},
-        calculate = function(values)
-            return complex.magnitude(values[1], values[2]), complex.phase(values[1], values[2])
-        end
+        calculate = function(v) return complex.magnitude(v[1], v[2]), complex.phase(v[1], v[2]) end
     }),
 
     complexAdd = Calculator.new({
-        title = "Complex Addition",
-        subtitle = "A + B",
-        inputs = arithmeticInputs(),
-        outputs = arithmeticOutputs(),
-        calculate = function(values)
-            return complex.add(values[1], values[2], values[3], values[4])
-        end
+        title = "Complex Addition", subtitle = "A + B",
+        inputs = arithmeticInputs(), outputs = arithmeticOutputs(),
+        calculate = function(v) return complex.add(v[1], v[2], v[3], v[4]) end
     }),
 
     complexSubtract = Calculator.new({
-        title = "Complex Subtraction",
-        subtitle = "A - B",
-        inputs = arithmeticInputs(),
-        outputs = arithmeticOutputs(),
-        calculate = function(values)
-            return complex.subtract(values[1], values[2], values[3], values[4])
-        end
+        title = "Complex Subtraction", subtitle = "A - B",
+        inputs = arithmeticInputs(), outputs = arithmeticOutputs(),
+        calculate = function(v) return complex.subtract(v[1], v[2], v[3], v[4]) end
     }),
 
     complexMultiply = Calculator.new({
-        title = "Complex Multiplication",
-        subtitle = "A x B",
-        inputs = arithmeticInputs(),
-        outputs = arithmeticOutputs(),
-        calculate = function(values)
-            return complex.multiply(values[1], values[2], values[3], values[4])
-        end
+        title = "Complex Multiplication", subtitle = "A x B",
+        inputs = arithmeticInputs(), outputs = arithmeticOutputs(),
+        calculate = function(v) return complex.multiply(v[1], v[2], v[3], v[4]) end
     }),
 
     complexDivide = Calculator.new({
-        title = "Complex Division",
-        subtitle = "A / B",
-        inputs = arithmeticInputs(),
-        outputs = arithmeticOutputs(),
-        validate = function(values)
-            if values[3] == 0 and values[4] == 0 then return "Cannot divide by zero" end
+        title = "Complex Division", subtitle = "A / B",
+        inputs = arithmeticInputs(), outputs = arithmeticOutputs(),
+        validate = function(v)
+            if v[3] == 0 and v[4] == 0 then return "Cannot divide by zero" end
         end,
-        calculate = function(values)
-            return complex.divide(values[1], values[2], values[3], values[4])
-        end
+        calculate = function(v) return complex.divide(v[1], v[2], v[3], v[4]) end
     }),
 
     ohmsLaw = Calculator.new({
-        title = "Ohm's Law",
-        allowOneBlank = true,
+        title = "Ohm's Law", allowOneBlank = true,
         inputs = {ohmsLawVariables[1], ohmsLawVariables[2], ohmsLawVariables[3]},
         outputs = {{label = "Result"}},
-        resolveOutputs = function(values, missing)
-            return {ohmsLawVariables[missing]}
+        resolveOutputs = function(v, missing) return {ohmsLawVariables[missing]} end,
+        validate = function(v, missing)
+            if v[3] and v[3] < 0 then return "Resistance cannot be negative" end
+            if missing == 2 and v[3] == 0 then return "Resistance cannot be zero" end
+            if missing == 3 and v[2] == 0 then return "Current cannot be zero" end
         end,
-        validate = function(values, missing)
-            if values[3] and values[3] < 0 then return "Resistance cannot be negative" end
-            if missing == 2 and values[3] == 0 then return "Resistance cannot be zero" end
-            if missing == 3 and values[2] == 0 then return "Current cannot be zero" end
-        end,
-        calculate = function(values, missing)
-            if missing == 1 then return values[2] * values[3] end
-            if missing == 2 then return values[1] / values[3] end
-            return values[1] / values[2]
+        calculate = function(v, missing)
+            if missing == 1 then return v[2] * v[3] end
+            if missing == 2 then return v[1] / v[3] end
+            return v[1] / v[2]
         end
     }),
 
     electricalPower = Calculator.new({
-        title = "Electrical Power",
-        subtitle = "Leave exactly one field blank",
+        title = "Electrical Power", subtitle = "Leave exactly one field blank",
         allowOneBlank = true,
         inputs = {powerVariables[1], powerVariables[2], powerVariables[3], powerVariables[4]},
         outputs = {{label = "Result"}},
-        resolveOutputs = function(values, missing)
-            return {powerVariables[missing]}
-        end,
-        validate = function(values, missing)
-            local voltage, current, resistance, power = values[1], values[2], values[3], values[4]
+        resolveOutputs = function(v, missing) return {powerVariables[missing]} end,
+        validate = function(v, missing)
+            local voltage, current, resistance, power = v[1], v[2], v[3], v[4]
             if resistance and resistance < 0 then return "Resistance cannot be negative" end
             if power and power < 0 then return "Power cannot be negative" end
             if missing == 1 then
-                if not approximatelyEqual(power, current * current * resistance) then
-                    return "I, R, and P are inconsistent"
-                end
+                if not approximatelyEqual(power, current * current * resistance) then return "I, R, and P are inconsistent" end
             elseif missing == 2 then
                 if resistance == 0 then return "Resistance cannot be zero" end
-                if not approximatelyEqual(power, voltage * voltage / resistance) then
-                    return "V, R, and P are inconsistent"
-                end
+                if not approximatelyEqual(power, voltage * voltage / resistance) then return "V, R, and P are inconsistent" end
             elseif missing == 3 then
                 if current == 0 then return "Current cannot be zero" end
-                if not approximatelyEqual(power, voltage * current) then
-                    return "V, I, and P are inconsistent"
-                end
+                if not approximatelyEqual(power, voltage * current) then return "V, I, and P are inconsistent" end
                 if voltage / current < 0 then return "Resistance cannot be negative" end
             elseif not approximatelyEqual(voltage, current * resistance) then
                 return "V, I, and R are inconsistent"
             end
         end,
-        calculate = function(values, missing)
-            local voltage, current, resistance = values[1], values[2], values[3]
-            if missing == 1 then return current * resistance end
-            if missing == 2 then return voltage / resistance end
-            if missing == 3 then return voltage / current end
-            return voltage * current
+        calculate = function(v, missing)
+            if missing == 1 then return v[2] * v[3] end
+            if missing == 2 then return v[1] / v[3] end
+            if missing == 3 then return v[1] / v[2] end
+            return v[1] * v[2]
         end
     }),
 
     voltageDivider = Calculator.new({
-        title = "Voltage Divider",
-        subtitle = "Output is measured across R2",
-        inputs = {
-            {label = "Input voltage", unit = "V"},
-            {label = "R1", unit = "ohm"},
-            {label = "R2", unit = "ohm"}
-        },
+        title = "Voltage Divider", subtitle = "Output is measured across R2",
+        inputs = {{label = "Input voltage", unit = "V"}, {label = "R1", unit = "ohm"}, {label = "R2", unit = "ohm"}},
         outputs = {{label = "Output voltage", unit = "V"}},
-        validate = function(values)
-            local r1, r2 = values[2], values[3]
-            if r1 < 0 or r2 < 0 then return "Resistance cannot be negative" end
-            if r1 + r2 == 0 then return "Total resistance cannot be zero" end
+        validate = function(v)
+            if v[2] < 0 or v[3] < 0 then return "Resistance cannot be negative" end
+            if v[2] + v[3] == 0 then return "Total resistance cannot be zero" end
         end,
-        calculate = function(values)
-            return values[1] * values[3] / (values[2] + values[3])
-        end
+        calculate = function(v) return v[1] * v[3] / (v[2] + v[3]) end
     }),
 
     currentDivider = Calculator.new({
-        title = "Current Divider",
-        subtitle = "R1 and R2 are parallel branches",
-        inputs = {
-            {label = "Input current", unit = "A"},
-            {label = "R1", unit = "ohm"},
-            {label = "R2", unit = "ohm"}
-        },
-        outputs = {
-            {label = "Current through R1", unit = "A"},
-            {label = "Current through R2", unit = "A"}
-        },
-        validate = function(values)
-            local r1, r2 = values[2], values[3]
-            if r1 < 0 or r2 < 0 then return "Resistance cannot be negative" end
-            if r1 + r2 == 0 then return "Total resistance cannot be zero" end
+        title = "Current Divider", subtitle = "R1 and R2 are parallel branches",
+        inputs = {{label = "Input current", unit = "A"}, {label = "R1", unit = "ohm"}, {label = "R2", unit = "ohm"}},
+        outputs = {{label = "Current through R1", unit = "A"}, {label = "Current through R2", unit = "A"}},
+        validate = function(v)
+            if v[2] < 0 or v[3] < 0 then return "Resistance cannot be negative" end
+            if v[2] + v[3] == 0 then return "Total resistance cannot be zero" end
         end,
-        calculate = function(values)
-            local total = values[2] + values[3]
-            return values[1] * values[3] / total, values[1] * values[2] / total
+        calculate = function(v)
+            local total = v[2] + v[3]
+            return v[1] * v[3] / total, v[1] * v[2] / total
         end
     }),
 
     seriesResistance = Calculator.new({
-        title = "Series Resistance",
-        subtitle = "Enter 2 to 5 resistors",
-        allowOptionalInputs = true,
-        minimumInputs = 2,
+        title = "Series Resistance", subtitle = "Enter 2 to 5 resistors",
+        allowOptionalInputs = true, minimumInputs = 2,
         inputs = resistorInputs(5),
         outputs = {{label = "Equivalent resistance", unit = "ohm"}},
-        validate = function(values)
+        validate = function(v)
             local invalid = false
-            eachEnteredValue(values, function(value)
-                if value < 0 then invalid = true end
-            end)
+            eachEnteredValue(v, function(value) if value < 0 then invalid = true end end)
             if invalid then return "Resistance cannot be negative" end
         end,
-        calculate = function(values)
+        calculate = function(v)
             local total = 0
-            eachEnteredValue(values, function(value) total = total + value end)
+            eachEnteredValue(v, function(value) total = total + value end)
             return total
         end
     }),
 
     parallelResistance = Calculator.new({
-        title = "Parallel Resistance",
-        subtitle = "Enter 2 to 5 resistors",
-        allowOptionalInputs = true,
-        minimumInputs = 2,
+        title = "Parallel Resistance", subtitle = "Enter 2 to 5 resistors",
+        allowOptionalInputs = true, minimumInputs = 2,
         inputs = resistorInputs(5),
         outputs = {{label = "Equivalent resistance", unit = "ohm"}},
-        validate = function(values)
+        validate = function(v)
             local negative, zero = false, false
-            eachEnteredValue(values, function(value)
+            eachEnteredValue(v, function(value)
                 if value < 0 then negative = true end
                 if value == 0 then zero = true end
             end)
             if negative then return "Resistance cannot be negative" end
             if zero then return "Parallel resistance cannot be zero" end
         end,
-        calculate = function(values)
+        calculate = function(v)
             local reciprocalSum = 0
-            eachEnteredValue(values, function(value)
-                reciprocalSum = reciprocalSum + (1 / value)
-            end)
+            eachEnteredValue(v, function(value) reciprocalSum = reciprocalSum + 1 / value end)
             return 1 / reciprocalSum
         end
     }),
 
     deltaToWye = Calculator.new({
-        title = "Delta to Wye",
-        subtitle = "Delta resistors connect terminal pairs",
-        inputs = {
-            {label = "R_AB", unit = "ohm"},
-            {label = "R_BC", unit = "ohm"},
-            {label = "R_CA", unit = "ohm"}
-        },
-        outputs = {
-            {label = "R_A", unit = "ohm"},
-            {label = "R_B", unit = "ohm"},
-            {label = "R_C", unit = "ohm"}
-        },
+        title = "Delta to Wye", subtitle = "Delta resistors connect terminal pairs",
+        inputs = {{label = "R_AB", unit = "ohm"}, {label = "R_BC", unit = "ohm"}, {label = "R_CA", unit = "ohm"}},
+        outputs = {{label = "R_A", unit = "ohm"}, {label = "R_B", unit = "ohm"}, {label = "R_C", unit = "ohm"}},
         validate = validatePositiveResistors,
-        calculate = function(values)
-            local rab, rbc, rca = values[1], values[2], values[3]
-            local sum = rab + rbc + rca
-            return rab * rca / sum, rab * rbc / sum, rbc * rca / sum
+        calculate = function(v)
+            local sum = v[1] + v[2] + v[3]
+            return v[1] * v[3] / sum, v[1] * v[2] / sum, v[2] * v[3] / sum
         end
     }),
 
     wyeToDelta = Calculator.new({
-        title = "Wye to Delta",
-        subtitle = "Wye resistors run from terminal to centre",
-        inputs = {
-            {label = "R_A", unit = "ohm"},
-            {label = "R_B", unit = "ohm"},
-            {label = "R_C", unit = "ohm"}
-        },
-        outputs = {
-            {label = "R_AB", unit = "ohm"},
-            {label = "R_BC", unit = "ohm"},
-            {label = "R_CA", unit = "ohm"}
-        },
+        title = "Wye to Delta", subtitle = "Wye resistors run from terminal to centre",
+        inputs = {{label = "R_A", unit = "ohm"}, {label = "R_B", unit = "ohm"}, {label = "R_C", unit = "ohm"}},
+        outputs = {{label = "R_AB", unit = "ohm"}, {label = "R_BC", unit = "ohm"}, {label = "R_CA", unit = "ohm"}},
         validate = validatePositiveResistors,
-        calculate = function(values)
-            local ra, rb, rc = values[1], values[2], values[3]
-            local productSum = ra * rb + rb * rc + rc * ra
-            return productSum / rc, productSum / ra, productSum / rb
+        calculate = function(v)
+            local productSum = v[1] * v[2] + v[2] * v[3] + v[3] * v[1]
+            return productSum / v[3], productSum / v[1], productSum / v[2]
         end
     }),
 
     voltageToCurrentSource = Calculator.new({
-        title = "Voltage to Current Source",
-        subtitle = "Series voltage source to parallel current source",
-        inputs = {
-            {label = "Voltage source", unit = "V"},
-            {label = "Series resistance", unit = "ohm"}
-        },
-        outputs = {
-            {label = "Current source", unit = "A"},
-            {label = "Parallel resistance", unit = "ohm"}
-        },
+        title = "Voltage to Current Source", subtitle = "Series voltage source to parallel current source",
+        inputs = {{label = "Voltage source", unit = "V"}, {label = "Series resistance", unit = "ohm"}},
+        outputs = {{label = "Current source", unit = "A"}, {label = "Parallel resistance", unit = "ohm"}},
         validate = validatePositiveEquivalentResistance,
-        calculate = function(values)
-            return values[1] / values[2], values[2]
-        end
+        calculate = function(v) return v[1] / v[2], v[2] end
     }),
 
     currentToVoltageSource = Calculator.new({
-        title = "Current to Voltage Source",
-        subtitle = "Parallel current source to series voltage source",
-        inputs = {
-            {label = "Current source", unit = "A"},
-            {label = "Parallel resistance", unit = "ohm"}
-        },
-        outputs = {
-            {label = "Voltage source", unit = "V"},
-            {label = "Series resistance", unit = "ohm"}
-        },
+        title = "Current to Voltage Source", subtitle = "Parallel current source to series voltage source",
+        inputs = {{label = "Current source", unit = "A"}, {label = "Parallel resistance", unit = "ohm"}},
+        outputs = {{label = "Voltage source", unit = "V"}, {label = "Series resistance", unit = "ohm"}},
         validate = validatePositiveEquivalentResistance,
-        calculate = function(values)
-            return values[1] * values[2], values[2]
-        end
+        calculate = function(v) return v[1] * v[2], v[2] end
     }),
 
     theveninToNorton = Calculator.new({
-        title = "Thevenin to Norton",
-        subtitle = "Convert V_th and R_th to I_N and R_N",
-        inputs = {
-            {label = "V_th", unit = "V"},
-            {label = "R_th", unit = "ohm"}
-        },
-        outputs = {
-            {label = "I_N", unit = "A"},
-            {label = "R_N", unit = "ohm"}
-        },
+        title = "Thevenin to Norton", subtitle = "Convert V_th and R_th to I_N and R_N",
+        inputs = {{label = "V_th", unit = "V"}, {label = "R_th", unit = "ohm"}},
+        outputs = {{label = "I_N", unit = "A"}, {label = "R_N", unit = "ohm"}},
         validate = validatePositiveEquivalentResistance,
-        calculate = function(values)
-            return values[1] / values[2], values[2]
-        end
+        calculate = function(v) return v[1] / v[2], v[2] end
     }),
 
     nortonToThevenin = Calculator.new({
-        title = "Norton to Thevenin",
-        subtitle = "Convert I_N and R_N to V_th and R_th",
-        inputs = {
-            {label = "I_N", unit = "A"},
-            {label = "R_N", unit = "ohm"}
-        },
-        outputs = {
-            {label = "V_th", unit = "V"},
-            {label = "R_th", unit = "ohm"}
-        },
+        title = "Norton to Thevenin", subtitle = "Convert I_N and R_N to V_th and R_th",
+        inputs = {{label = "I_N", unit = "A"}, {label = "R_N", unit = "ohm"}},
+        outputs = {{label = "V_th", unit = "V"}, {label = "R_th", unit = "ohm"}},
         validate = validatePositiveEquivalentResistance,
-        calculate = function(values)
-            return values[1] * values[2], values[2]
+        calculate = function(v) return v[1] * v[2], v[2] end
+    }),
+
+    meshTwo = Calculator.new({
+        title = "Two-Mesh Equation Solver",
+        subtitle = "a11 I1 + a12 I2 = b1; a21 I1 + a22 I2 = b2",
+        inputs = {
+            {label = "a11", unit = "ohm"}, {label = "a12", unit = "ohm"}, {label = "b1", unit = "V"},
+            {label = "a21", unit = "ohm"}, {label = "a22", unit = "ohm"}, {label = "b2", unit = "V"}
+        },
+        outputs = {{label = "Mesh current I1", unit = "A"}, {label = "Mesh current I2", unit = "A"}},
+        validate = function(v)
+            local determinant = v[1] * v[5] - v[2] * v[4]
+            if math.abs(determinant) < 1e-12 then return "Equations are singular" end
+        end,
+        calculate = function(v)
+            local determinant = v[1] * v[5] - v[2] * v[4]
+            local i1 = (v[3] * v[5] - v[2] * v[6]) / determinant
+            local i2 = (v[1] * v[6] - v[3] * v[4]) / determinant
+            return i1, i2
         end
     })
 }
 
 local complexArithmeticMenu = {
-    title = "Complex Arithmetic",
-    subtitle = "Choose an operation",
+    title = "Complex Arithmetic", subtitle = "Choose an operation",
     items = {
-        {label = "Add", calculator = "complexAdd"},
-        {label = "Subtract", calculator = "complexSubtract"},
-        {label = "Multiply", calculator = "complexMultiply"},
-        {label = "Divide", calculator = "complexDivide"}
+        {label = "Add", calculator = "complexAdd"}, {label = "Subtract", calculator = "complexSubtract"},
+        {label = "Multiply", calculator = "complexMultiply"}, {label = "Divide", calculator = "complexDivide"}
     }
 }
 
 local complexMenu = {
-    title = "Complex Numbers",
-    subtitle = "Enter to select, Esc to return",
+    title = "Complex Numbers", subtitle = "Enter to select, Esc to return",
     items = {
         {label = "Rectangular to Polar", calculator = "rectToPolar"},
         {label = "Polar to Rectangular", calculator = "polarToRect"},
@@ -423,19 +318,15 @@ local complexMenu = {
 }
 
 local basicCircuitsMenu = {
-    title = "Basic Circuits",
-    subtitle = "Enter to select, Esc to return",
+    title = "Basic Circuits", subtitle = "Enter to select, Esc to return",
     items = {
-        {label = "Ohm's Law", calculator = "ohmsLaw"},
-        {label = "Electrical Power", calculator = "electricalPower"},
-        {label = "Voltage Divider", calculator = "voltageDivider"},
-        {label = "Current Divider", calculator = "currentDivider"}
+        {label = "Ohm's Law", calculator = "ohmsLaw"}, {label = "Electrical Power", calculator = "electricalPower"},
+        {label = "Voltage Divider", calculator = "voltageDivider"}, {label = "Current Divider", calculator = "currentDivider"}
     }
 }
 
 local resistorNetworksMenu = {
-    title = "Resistor Networks",
-    subtitle = "Equivalent resistance and conversions",
+    title = "Resistor Networks", subtitle = "Equivalent resistance and conversions",
     items = {
         {label = "Series Resistance", calculator = "seriesResistance"},
         {label = "Parallel Resistance", calculator = "parallelResistance"},
@@ -445,8 +336,7 @@ local resistorNetworksMenu = {
 }
 
 local sourceTransformationMenu = {
-    title = "Source Transformation",
-    subtitle = "Choose the source conversion direction",
+    title = "Source Transformation", subtitle = "Choose the source conversion direction",
     items = {
         {label = "Voltage to Current", calculator = "voltageToCurrentSource"},
         {label = "Current to Voltage", calculator = "currentToVoltageSource"}
@@ -454,8 +344,7 @@ local sourceTransformationMenu = {
 }
 
 local equivalentConversionMenu = {
-    title = "Thevenin and Norton",
-    subtitle = "Choose the equivalent conversion direction",
+    title = "Thevenin and Norton", subtitle = "Choose the equivalent conversion direction",
     items = {
         {label = "Thevenin to Norton", calculator = "theveninToNorton"},
         {label = "Norton to Thevenin", calculator = "nortonToThevenin"}
@@ -463,42 +352,40 @@ local equivalentConversionMenu = {
 }
 
 local networkTheoremsMenu = {
-    title = "Network Theorems",
-    subtitle = "Source and equivalent-circuit conversions",
+    title = "Network Theorems", subtitle = "Source and equivalent-circuit conversions",
     items = {
         {label = "Thevenin / Norton", menu = equivalentConversionMenu},
         {label = "Source Transformation", menu = sourceTransformationMenu}
     }
 }
 
+local equationSolversMenu = {
+    title = "Equation Solvers", subtitle = "Solve circuit equation systems",
+    items = {{label = "Two-Mesh Solver", calculator = "meshTwo"}, {label = "Three-Mesh Solver"}}
+}
+
 local circuitMenu = {
-    title = "Circuit Analysis",
-    subtitle = "Choose a category",
+    title = "Circuit Analysis", subtitle = "Choose a category",
     items = {
         {label = "Basic Circuits", menu = basicCircuitsMenu},
         {label = "Resistor Networks", menu = resistorNetworksMenu},
-        {label = "Network Theorems", menu = networkTheoremsMenu}
+        {label = "Network Theorems", menu = networkTheoremsMenu},
+        {label = "Equation Solvers", menu = equationSolversMenu}
     }
 }
 
 local rootMenu = {
-    title = "Engineering Toolbox",
-    subtitle = "Use arrows and Enter",
+    title = "Engineering Toolbox", subtitle = "Use arrows and Enter",
     items = {
-        {label = "Complex Numbers", menu = complexMenu},
-        {label = "Circuit Analysis", menu = circuitMenu},
-        {label = "Linear Algebra"},
-        {label = "Signals and Systems"},
-        {label = "General Math"}
+        {label = "Complex Numbers", menu = complexMenu}, {label = "Circuit Analysis", menu = circuitMenu},
+        {label = "Linear Algebra"}, {label = "Signals and Systems"}, {label = "General Math"}
     }
 }
 
 local menuStack = {{menu = rootMenu, selected = 1}}
 local activeCalculator = nil
 
-local function currentFrame()
-    return menuStack[#menuStack]
-end
+local function currentFrame() return menuStack[#menuStack] end
 
 local function menuLabels(menu)
     local labels = {}
@@ -522,10 +409,7 @@ local function openSelectedMenuItem()
 end
 
 function on.paint(gc)
-    if activeCalculator then
-        activeCalculator:draw(gc)
-        return
-    end
+    if activeCalculator then activeCalculator:draw(gc) return end
     local frame = currentFrame()
     Menu.draw(gc, frame.menu.title, menuLabels(frame.menu), frame.selected, frame.menu.subtitle)
 end
@@ -546,17 +430,11 @@ function on.enterKey()
 end
 
 function on.charIn(character)
-    if activeCalculator then
-        activeCalculator:append(character)
-        platform.window:invalidate()
-    end
+    if activeCalculator then activeCalculator:append(character) platform.window:invalidate() end
 end
 
 function on.backspaceKey()
-    if activeCalculator then
-        activeCalculator:backspace()
-        platform.window:invalidate()
-    end
+    if activeCalculator then activeCalculator:backspace() platform.window:invalidate() end
 end
 
 function on.escapeKey()
