@@ -31,6 +31,24 @@ local function engineeringFormat(value)
     return string.format("%.4g%s", scaledValue, engineeringPrefixes[exponent])
 end
 
+local function drawCenteredFitted(gc, text, y, bold, preferredSize, minimumSize)
+    local width = platform.window:width()
+    local horizontalPadding = 12
+    local size = preferredSize
+
+    while size > minimumSize do
+        gc:setFont("sansserif", bold and "b" or "r", size)
+        if gc:getStringWidth(text) <= width - (2 * horizontalPadding) then
+            break
+        end
+        size = size - 1
+    end
+
+    gc:setFont("sansserif", bold and "b" or "r", size)
+    local x = math.max(horizontalPadding, (width - gc:getStringWidth(text)) / 2)
+    gc:drawString(text, x, y, "top")
+end
+
 local function makeEmptyValues(count)
     local values = {}
     for i = 1, count do
@@ -107,14 +125,12 @@ function Calculator:draw(gc)
     local inputStart = 60
     local outputStart = inputStart + (#self.inputs * inputSpacing) + 8
 
-    gc:setFont("sansserif", "b", 14)
-    gc:drawString(self.title, width / 2, 12, "middle")
+    drawCenteredFitted(gc, self.title, 8, true, 14, 10)
 
-    gc:setFont("sansserif", "r", 9)
     local defaultSubtitle = self.allowOneBlank
         and "Leave one value blank, then press Enter"
         or "Type a value, then press Enter"
-    gc:drawString(self.subtitle or defaultSubtitle, width / 2, 34, "middle")
+    drawCenteredFitted(gc, self.subtitle or defaultSubtitle, 32, false, 9, 7)
 
     for i, input in ipairs(self.inputs) do
         drawInputField(
@@ -128,7 +144,8 @@ function Calculator:draw(gc)
 
     if self.errorMessage then
         gc:setFont("sansserif", "b", 10)
-        gc:drawString(self.errorMessage, width / 2, outputStart, "middle")
+        local x = math.max(12, (width - gc:getStringWidth(self.errorMessage)) / 2)
+        gc:drawString(self.errorMessage, x, outputStart, "top")
     elseif self.results then
         gc:setFont("sansserif", "b", 10)
         local outputs = self.resultOutputs or self.outputs
@@ -142,8 +159,7 @@ function Calculator:draw(gc)
         end
     end
 
-    gc:setFont("sansserif", "r", 9)
-    gc:drawString("Esc: back   Del: erase", width / 2, 218, "middle")
+    drawCenteredFitted(gc, "Esc: back   Del: erase", 214, false, 9, 7)
 end
 
 function Calculator:moveField(key)
