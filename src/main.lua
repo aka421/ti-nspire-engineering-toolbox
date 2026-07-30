@@ -247,6 +247,37 @@ local calculators = {
                 return voltage * current
             end
         end
+    }),
+
+    voltageDivider = Calculator.new({
+        title = "Voltage Divider",
+        subtitle = "Output is measured across R2",
+        inputs = {
+            {label = "Input voltage", unit = "V"},
+            {label = "R1", unit = "ohm"},
+            {label = "R2", unit = "ohm"}
+        },
+        outputs = {
+            {label = "Output voltage", unit = "V"}
+        },
+        validate = function(values)
+            local r1 = values[2]
+            local r2 = values[3]
+
+            if r1 < 0 or r2 < 0 then
+                return "Resistance cannot be negative"
+            end
+
+            if r1 + r2 == 0 then
+                return "Total resistance cannot be zero"
+            end
+        end,
+        calculate = function(values)
+            local inputVoltage = values[1]
+            local r1 = values[2]
+            local r2 = values[3]
+            return inputVoltage * r2 / (r1 + r2)
+        end
     })
 }
 
@@ -279,7 +310,7 @@ local basicCircuitsMenu = {
     items = {
         {label = "Ohm's Law", calculator = "ohmsLaw"},
         {label = "Electrical Power", calculator = "electricalPower"},
-        {label = "Voltage Divider"},
+        {label = "Voltage Divider", calculator = "voltageDivider"},
         {label = "Current Divider"}
     }
 }
