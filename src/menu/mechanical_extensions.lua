@@ -2,6 +2,7 @@
 
 registerMechanicalCalculators(calculators)
 registerDynamicsCalculators(calculators)
+registerVibrationCalculators(calculators)
 
 local staticsMenu = {
     title = "Statics",
@@ -109,14 +110,54 @@ local dynamicsMenu = {
     }
 }
 
+local freeVibrationMenu = {
+    title = "Free Vibration",
+    subtitle = "Natural frequency and transient response",
+    items = {
+        {label="Natural Frequency",calculator="naturalFrequency"},
+        {label="Damping Properties",calculator="dampingProperties"},
+        {label="Logarithmic Decrement",calculator="logarithmicDecrement"},
+        {label="Underdamped Free Response",calculator="underdampedFreeResponse"},
+        {label="Simple Pendulum",calculator="pendulumFrequency"}
+    }
+}
+
+local forcedVibrationMenu = {
+    title = "Forced Vibration",
+    subtitle = "Steady-state response and isolation",
+    items = {
+        {label="Harmonic Force Response",calculator="harmonicForceResponse"},
+        {label="Vibration Transmissibility",calculator="vibrationTransmissibility"}
+    }
+}
+
+local springSystemsMenu = {
+    title = "Equivalent Springs",
+    subtitle = "Combine spring stiffnesses",
+    items = {
+        {label="Springs in Series",calculator="springSeries"},
+        {label="Springs in Parallel",calculator="springParallel"}
+    }
+}
+
+local vibrationsMenu = {
+    title = "Vibrations",
+    subtitle = "Single-degree-of-freedom vibration tools",
+    items = {
+        {label="Free Vibration",menu=freeVibrationMenu},
+        {label="Forced Vibration",menu=forcedVibrationMenu},
+        {label="Equivalent Springs",menu=springSystemsMenu}
+    }
+}
+
 local mechanicalEngineeringMenu = {
     title = "Mechanical Engineering",
-    subtitle = "Statics, materials, and dynamics",
+    subtitle = "Statics, materials, dynamics, and vibrations",
     items = {
         {label="Statics",menu=staticsMenu},
         {label="Mechanics of Materials",menu=mechanicsMaterialsMenu},
         {label="Dynamics",menu=dynamicsMenu},
-        {label="Vibrations"},
+        {label="Vibrations",menu=vibrationsMenu},
         {label="Thermodynamics"},
         {label="Fluid Mechanics"}
     }
