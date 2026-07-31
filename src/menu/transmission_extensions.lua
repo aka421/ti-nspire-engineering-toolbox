@@ -14,3 +14,8 @@ table.insert(transmissionTransformsMenu.items, 5, {
     label = "Voltage/Current Maxima",
     calculator = "voltageCurrentMaxima"
 })
+
+table.insert(transmissionMetricsMenu.items, {
+    label = "Time-Average Power",
+    calculator = "transmissionAveragePower"
+})
