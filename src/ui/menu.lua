@@ -3,6 +3,7 @@
 Menu = {}
 
 local VISIBLE_ITEMS = 5
+local scrollPositions = {}
 
 local function drawCenteredFitted(gc, text, y, bold, preferredSize, minimumSize)
     local width = platform.window:width()
@@ -31,14 +32,13 @@ function Menu.ensureVisible(selectedItem, scrollOffset, itemCount)
 end
 
 function Menu.draw(gc, title, items, selectedItem, subtitle, scrollOffset, breadcrumb)
-    scrollOffset = Menu.ensureVisible(selectedItem, scrollOffset or 0, #items)
-    drawCenteredFitted(gc, title, 8, true, 14, 9)
+    local key = title or "menu"
+    if scrollOffset == nil then scrollOffset = scrollPositions[key] or 0 end
+    scrollOffset = Menu.ensureVisible(selectedItem, scrollOffset, #items)
+    scrollPositions[key] = scrollOffset
 
-    if breadcrumb and breadcrumb ~= "" then
-        drawCenteredFitted(gc, breadcrumb, 30, false, 8, 6)
-    else
-        drawCenteredFitted(gc, subtitle or "Use arrows and Enter", 30, false, 9, 7)
-    end
+    drawCenteredFitted(gc, title, 8, true, 14, 9)
+    drawCenteredFitted(gc, breadcrumb or subtitle or "Use arrows and Enter", 30, false, 9, 6)
 
     local first = scrollOffset + 1
     local last = math.min(#items, scrollOffset + VISIBLE_ITEMS)
@@ -54,7 +54,7 @@ function Menu.draw(gc, title, items, selectedItem, subtitle, scrollOffset, bread
 
     local countText = tostring(selectedItem) .. "/" .. tostring(#items)
     gc:drawString(countText, platform.window:width() - gc:getStringWidth(countText) - 12, 220, "top")
-    drawCenteredFitted(gc, subtitle or "Enter: select   Esc: back", 218, false, 8, 6)
+    drawCenteredFitted(gc, "Enter: select   Esc: back", 218, false, 8, 6)
 
     return scrollOffset
 end
