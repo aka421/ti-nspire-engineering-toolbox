@@ -66,13 +66,31 @@ local function formatOutput(output, value)
 end
 
 local function drawInputField(gc, input, text, y, selected)
-    gc:setFont("sansserif", "r", 10)
-    gc:drawString(labelWithUnit(input) .. ":", 18, y, "top")
+    local labelX = 18
+    local valueX = 158
+    local labelRightPadding = 8
+    local maximumLabelWidth = valueX - labelX - labelRightPadding
+    local labelText = labelWithUnit(input) .. ":"
+    local labelSize = 10
+
+    -- Long labels such as "Characteristic Z0 (ohm)" and
+    -- "Phase constant beta (rad/m)" used to extend underneath the input.
+    -- Shrink only the label, while leaving entered expressions at a readable size.
+    while labelSize > 7 do
+        gc:setFont("sansserif", "r", labelSize)
+        if gc:getStringWidth(labelText) <= maximumLabelWidth then break end
+        labelSize = labelSize - 1
+    end
+
+    gc:setFont("sansserif", "r", labelSize)
+    gc:drawString(labelText, labelX, y, "top")
+
     if selected then
         gc:setFont("sansserif", "b", 10)
-        gc:drawString("> " .. text .. "_", 145, y, "top")
+        gc:drawString("> " .. text .. "_", valueX, y, "top")
     else
-        gc:drawString("  " .. text, 145, y, "top")
+        gc:setFont("sansserif", "r", 10)
+        gc:drawString("  " .. text, valueX, y, "top")
     end
 end
 
