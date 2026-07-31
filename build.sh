@@ -32,10 +32,12 @@ cat \
   "$ROOT/src/calculators/waves.lua" \
   "$ROOT/src/calculators/transmission.lua" \
   "$ROOT/src/calculators/coordinates.lua" \
+  "$ROOT/src/calculators/mechanical.lua" \
   "$ROOT/src/main.lua" \
   "$ROOT/src/menu/transmission_extensions.lua" \
   "$ROOT/src/menu/equation_solver_extensions.lua" \
   "$ROOT/src/menu/linear_algebra_extensions.lua" \
+  "$ROOT/src/menu/mechanical_extensions.lua" \
   > "$BUNDLE"
 
 "$LUNA" "$BUNDLE" "$OUTPUT"
