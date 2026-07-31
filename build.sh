@@ -31,6 +31,7 @@ cat \
   "$ROOT/src/calculators/electromagnetics.lua" \
   "$ROOT/src/calculators/waves.lua" \
   "$ROOT/src/calculators/transmission.lua" \
+  "$ROOT/src/calculators/transmission_power.lua" \
   "$ROOT/src/calculators/coordinates.lua" \
   "$ROOT/src/calculators/mechanical.lua" \
   "$ROOT/src/calculators/dynamics.lua" \
