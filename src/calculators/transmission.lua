@@ -95,7 +95,7 @@ function registerTransmissionCalculators(calculators)
         end,
         calculate = function(v)
             local g2 = v[1] ^ 2
-            local returnLoss = v[1] == 0 and math.huge or -20 * math.log(v[1]) / math.log(10)
+            local returnLoss = v[1] == 0 and 1e99 or -20 * math.log(v[1]) / math.log(10)
             local mismatchLoss = -10 * math.log(1 - g2) / math.log(10)
             return returnLoss, mismatchLoss, 100 * g2, 100 * (1 - g2)
         end
