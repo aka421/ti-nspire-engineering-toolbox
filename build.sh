@@ -25,6 +25,8 @@ cat \
   "$ROOT/src/calculators/complex.lua" \
   "$ROOT/src/calculators/circuits.lua" \
   "$ROOT/src/calculators/electromagnetics.lua" \
+  "$ROOT/src/calculators/waves.lua" \
+  "$ROOT/src/calculators/transmission.lua" \
   "$ROOT/src/calculators/coordinates.lua" \
   "$ROOT/src/main.lua" \
   > "$BUNDLE"
