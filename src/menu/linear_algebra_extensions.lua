@@ -22,7 +22,7 @@ local matrixOperationsMenu = {
 
 local eigenMenu = {
     title = "Eigenvalues and Eigenvectors",
-    subtitle = "Real 2x2 matrix analysis",
+    subtitle = "2x2 matrix eigenanalysis",
     items = {
         {label="Eigenvalues 2x2",calculator="eigenvalues2"},
         {label="Eigenvectors 2x2",calculator="eigenvectors2"},
@@ -47,6 +47,7 @@ local linearAlgebraMenu = {
         {label="Matrix Operations",menu=matrixOperationsMenu},
         {label="Linear Systems",menu=linearSystemsMenu},
         {label="Matrix Properties 2x2",calculator="matrixProperties2"},
+        {label="Matrix Tests 2x2",calculator="matrixTests2"},
         {label="Eigenvalues and Eigenvectors",menu=eigenMenu}
     }
 }
