@@ -29,6 +29,7 @@ cat \
   "$ROOT/src/calculators/transmission.lua" \
   "$ROOT/src/calculators/coordinates.lua" \
   "$ROOT/src/main.lua" \
+  "$ROOT/src/menu/transmission_extensions.lua" \
   > "$BUNDLE"
 
 "$LUNA" "$BUNDLE" "$OUTPUT"
