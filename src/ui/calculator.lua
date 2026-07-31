@@ -17,7 +17,14 @@ local engineeringPrefixes = {
 local function engineeringFormat(value)
     if value == 0 then return "0" end
     local absoluteValue = math.abs(value)
-    local exponent = math.floor(math.log(absoluteValue) / math.log(10) / 3) * 3
+    local logarithm = math.log(absoluteValue) / math.log(10)
+
+    -- Gaussian elimination and other floating-point calculations can return
+    -- values such as 0.9999999999999999 instead of exactly 1. Without this
+    -- tolerance, floor() incorrectly selects the milli prefix and displays
+    -- the result as 1000m rather than 1.
+    local exponent = math.floor((logarithm + 1e-12) / 3) * 3
+
     if exponent < -12 or exponent > 12 then return string.format("%.4e", value) end
     return string.format("%.4g%s", value / (10 ^ exponent), engineeringPrefixes[exponent])
 end
