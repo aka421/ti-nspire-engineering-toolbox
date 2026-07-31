@@ -35,11 +35,13 @@ cat \
   "$ROOT/src/calculators/mechanical.lua" \
   "$ROOT/src/calculators/dynamics.lua" \
   "$ROOT/src/calculators/vibrations.lua" \
+  "$ROOT/src/calculators/thermodynamics.lua" \
   "$ROOT/src/main.lua" \
   "$ROOT/src/menu/transmission_extensions.lua" \
   "$ROOT/src/menu/equation_solver_extensions.lua" \
   "$ROOT/src/menu/linear_algebra_extensions.lua" \
   "$ROOT/src/menu/mechanical_extensions.lua" \
+  "$ROOT/src/menu/thermodynamics_extensions.lua" \
   > "$BUNDLE"
 
 "$LUNA" "$BUNDLE" "$OUTPUT"
