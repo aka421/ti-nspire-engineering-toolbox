@@ -30,7 +30,25 @@ function registerLinearAlgebraCalculators(calculators)
     calculators.matrixInverse2 = Calculator.new({id="matrixInverse2",title="Matrix Inverse 2x2",inputs=inputs2("A"),outputs=outputs2("Inv"),validate=function(v) local inv,err=matrix.inverse2(matrix.fromFlat(v,2,2,1)); if not inv then return err end end,calculate=function(v) return unpack2(matrix.inverse2(matrix.fromFlat(v,2,2,1))) end})
     calculators.matrixTrace2 = Calculator.new({id="matrixTrace2",title="Matrix Trace 2x2",inputs=inputs2("A"),outputs={{label="tr(A)"}},calculate=function(v) return v[1]+v[4] end})
     calculators.matrixTrace3 = Calculator.new({id="matrixTrace3",title="Matrix Trace 3x3",inputs={{label="A11"},{label="A12"},{label="A13"},{label="A21"},{label="A22"},{label="A23"},{label="A31"},{label="A32"},{label="A33"}},outputs={{label="tr(A)"}},visibleInputCount=5,calculate=function(v) return v[1]+v[5]+v[9] end})
-    calculators.matrixProperties2 = Calculator.new({id="matrixProperties2",title="Matrix Properties 2x2",inputs=inputs2("A"),outputs={{label="Determinant"},{label="Trace"},{label="Rank"},{label="Singular",format=yesNo},{label="Symmetric",format=yesNo},{label="Orthogonal",format=yesNo},{label="Positive definite",format=yesNo}},calculate=function(v) local a=matrix.fromFlat(v,2,2,1); local det=matrix.det2(a); return det,matrix.trace(a),matrix.rank2(a),math.abs(det)<1e-10 and 1 or 0,matrix.isSymmetric2(a) and 1 or 0,matrix.isOrthogonal2(a) and 1 or 0,matrix.isPositiveDefinite2(a) and 1 or 0 end})
+
+    calculators.matrixProperties2 = Calculator.new({
+        id="matrixProperties2",title="Matrix Properties 2x2",inputs=inputs2("A"),
+        outputs={{label="Determinant"},{label="Trace"},{label="Rank"},{label="Singular",format=yesNo}},
+        calculate=function(v)
+            local a=matrix.fromFlat(v,2,2,1); local det=matrix.det2(a)
+            return det,matrix.trace(a),matrix.rank2(a),math.abs(det)<1e-10 and 1 or 0
+        end
+    })
+
+    calculators.matrixTests2 = Calculator.new({
+        id="matrixTests2",title="Matrix Tests 2x2",inputs=inputs2("A"),
+        outputs={{label="Symmetric",format=yesNo},{label="Orthogonal",format=yesNo},{label="Positive definite",format=yesNo}},
+        calculate=function(v)
+            local a=matrix.fromFlat(v,2,2,1)
+            return matrix.isSymmetric2(a) and 1 or 0,matrix.isOrthogonal2(a) and 1 or 0,matrix.isPositiveDefinite2(a) and 1 or 0
+        end
+    })
+
     calculators.eigenvalues2 = Calculator.new({id="eigenvalues2",title="Eigenvalues 2x2",inputs=inputs2("A"),outputs={{label="lambda1 real"},{label="lambda1 imag"},{label="lambda2 real"},{label="lambda2 imag"}},calculate=function(v) return matrix.eigen2(matrix.fromFlat(v,2,2,1)) end})
     calculators.eigenvectors2 = Calculator.new({id="eigenvectors2",title="Eigenvectors 2x2",subtitle="Real, distinct eigenvalues only",inputs=inputs2("A"),outputs={{label="v1 x"},{label="v1 y"},{label="v2 x"},{label="v2 y"}},validate=function(v) local r1,i1,r2,i2=matrix.eigen2(matrix.fromFlat(v,2,2,1)); if math.abs(i1)>1e-10 or math.abs(i2)>1e-10 then return "Eigenvectors require real eigenvalues" end; if math.abs(r1-r2)<1e-10 then return "Repeated eigenvalue; eigenspace may not be unique" end end,calculate=function(v) local a=matrix.fromFlat(v,2,2,1); local l1,_,l2=matrix.eigen2(a); local x1,y1=matrix.eigenvector2(a,l1); local x2,y2=matrix.eigenvector2(a,l2); return x1,y1,x2,y2 end})
     calculators.characteristicPolynomial2 = Calculator.new({id="characteristicPolynomial2",title="Characteristic Polynomial 2x2",subtitle="lambda^2 + b lambda + c",inputs=inputs2("A"),outputs={{label="lambda^2 coefficient"},{label="lambda coefficient"},{label="constant"}},calculate=function(v) local a=matrix.fromFlat(v,2,2,1); return 1,-matrix.trace(a),matrix.det2(a) end})
