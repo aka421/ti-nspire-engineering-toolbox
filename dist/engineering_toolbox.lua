@@ -1,12 +1,33 @@
 -- Mathematical expression parser for calculator inputs.
--- Supports +, -, *, /, ^, parentheses, constants, and common functions.
+-- Supports arithmetic, common functions, SI suffixes, and Ans.
 
 expression = {}
+
+local ansValue = 0
 
 local constants = {
     pi = math.pi,
     e = math.exp(1)
 }
+
+local siPrefixes = {
+    p = 1e-12,
+    n = 1e-9,
+    u = 1e-6,
+    m = 1e-3,
+    k = 1e3,
+    M = 1e6,
+    G = 1e9,
+    T = 1e12
+}
+
+function expression.setAns(value)
+    if type(value) == "number" then ansValue = value end
+end
+
+function expression.getAns()
+    return ansValue
+end
 
 local function degreesToRadians(value)
     return value * math.pi / 180
@@ -54,11 +75,6 @@ local function parserFor(text)
         end
     end
 
-    function parser:peek()
-        self:skipWhitespace()
-        return string.sub(self.text, self.position, self.position)
-    end
-
     function parser:consume(character)
         self:skipWhitespace()
         if string.sub(self.text, self.position, self.position) == character then
@@ -72,13 +88,15 @@ local function parserFor(text)
         self:skipWhitespace()
         local start = self.position
         local sawDigit = false
+        local sawDecimal = false
 
         while self.position <= self.length do
             local character = string.sub(self.text, self.position, self.position)
             if character >= "0" and character <= "9" then
                 sawDigit = true
                 self.position = self.position + 1
-            elseif character == "." then
+            elseif character == "." and not sawDecimal then
+                sawDecimal = true
                 self.position = self.position + 1
             else
                 break
@@ -103,11 +121,16 @@ local function parserFor(text)
                     break
                 end
             end
-
             if self.position == exponentDigits then self.position = exponentStart end
         end
 
-        return tonumber(string.sub(self.text, start, self.position - 1))
+        local value = tonumber(string.sub(self.text, start, self.position - 1))
+        local prefix = string.sub(self.text, self.position, self.position)
+        if siPrefixes[prefix] then
+            value = value * siPrefixes[prefix]
+            self.position = self.position + 1
+        end
+        return value
     end
 
     function parser:parseIdentifier()
@@ -122,7 +145,7 @@ local function parserFor(text)
             end
         end
         if self.position == start then return nil end
-        return string.lower(string.sub(self.text, start, self.position - 1))
+        return string.sub(self.text, start, self.position - 1)
     end
 
     function parser:parsePrimary()
@@ -137,8 +160,10 @@ local function parserFor(text)
 
         local identifier = self:parseIdentifier()
         if identifier then
-            if constants[identifier] ~= nil then return constants[identifier] end
-            local operation = functions[identifier]
+            local lower = string.lower(identifier)
+            if lower == "ans" then return ansValue end
+            if constants[lower] ~= nil then return constants[lower] end
+            local operation = functions[lower]
             if not operation then error("unknown name") end
             if not self:consume("(") then error("function needs parentheses") end
             local argument = self:parseExpression()
@@ -157,9 +182,7 @@ local function parserFor(text)
 
     function parser:parsePower()
         local value = self:parsePrimary()
-        if self:consume("^") then
-            value = value ^ self:parseUnary()
-        end
+        if self:consume("^") then value = value ^ self:parseUnary() end
         return value
     end
 
@@ -197,9 +220,7 @@ local function parserFor(text)
 end
 
 function expression.evaluate(text)
-    if text == nil or string.match(text, "^%s*$") then
-        return nil, "empty expression"
-    end
+    if text == nil or string.match(text, "^%s*$") then return nil, "empty expression" end
 
     local parser = parserFor(text)
     local ok, value = pcall(function()
@@ -212,8 +233,7 @@ function expression.evaluate(text)
 
     if not ok then return nil, value end
     return value, nil
-end
--- Complex-number calculations for the Engineering Toolbox.
+end-- Complex-number calculations for the Engineering Toolbox.
 -- This file is concatenated before the application code during the build.
 
 complex = {}
@@ -374,59 +394,83 @@ end
 
 Menu = {}
 
+local VISIBLE_ITEMS = 5
+local scrollPositions = {}
+
 local function drawCenteredFitted(gc, text, y, bold, preferredSize, minimumSize)
     local width = platform.window:width()
-    local horizontalPadding = 12
+    local padding = 12
     local size = preferredSize
-
     while size > minimumSize do
         gc:setFont("sansserif", bold and "b" or "r", size)
-        if gc:getStringWidth(text) <= width - (2 * horizontalPadding) then
-            break
-        end
+        if gc:getStringWidth(text) <= width - 2 * padding then break end
         size = size - 1
     end
-
     gc:setFont("sansserif", bold and "b" or "r", size)
-    local x = math.max(horizontalPadding, (width - gc:getStringWidth(text)) / 2)
-    gc:drawString(text, x, y, "top")
+    gc:drawString(text, math.max(padding, (width - gc:getStringWidth(text)) / 2), y, "top")
 end
 
-function Menu.draw(gc, title, items, selectedItem, subtitle)
-    drawCenteredFitted(gc, title, 10, true, 14, 10)
-    drawCenteredFitted(gc, subtitle or "Use arrows and Enter", 34, false, 9, 7)
-
-    for i, item in ipairs(items) do
-        local y = 58 + ((i - 1) * 28)
-
-        if i == selectedItem then
-            gc:setFont("sansserif", "b", 11)
-            gc:drawString("> " .. item, 30, y, "top")
-        else
-            gc:setFont("sansserif", "r", 11)
-            gc:drawString("  " .. item, 30, y, "top")
-        end
+function Menu.ensureVisible(selectedItem, scrollOffset, itemCount)
+    scrollOffset = scrollOffset or 0
+    if selectedItem <= scrollOffset then
+        scrollOffset = selectedItem - 1
+    elseif selectedItem > scrollOffset + VISIBLE_ITEMS then
+        scrollOffset = selectedItem - VISIBLE_ITEMS
     end
+    local maximumOffset = math.max(0, itemCount - VISIBLE_ITEMS)
+    if scrollOffset < 0 then scrollOffset = 0 end
+    if scrollOffset > maximumOffset then scrollOffset = maximumOffset end
+    return scrollOffset
+end
+
+function Menu.draw(gc, title, items, selectedItem, subtitle, scrollOffset, breadcrumb)
+    local key = title or "menu"
+    if scrollOffset == nil then scrollOffset = scrollPositions[key] or 0 end
+    scrollOffset = Menu.ensureVisible(selectedItem, scrollOffset, #items)
+    scrollPositions[key] = scrollOffset
+
+    drawCenteredFitted(gc, title, 8, true, 14, 9)
+    drawCenteredFitted(gc, breadcrumb or subtitle or "Use arrows and Enter", 30, false, 9, 6)
+
+    local first = scrollOffset + 1
+    local last = math.min(#items, scrollOffset + VISIBLE_ITEMS)
+    for i = first, last do
+        local y = 56 + ((i - first) * 30)
+        gc:setFont("sansserif", i == selectedItem and "b" or "r", 11)
+        gc:drawString((i == selectedItem and "> " or "  ") .. items[i], 26, y, "top")
+    end
+
+    gc:setFont("sansserif", "r", 8)
+    if first > 1 then gc:drawString("^ more", platform.window:width() - 48, 48, "top") end
+    if last < #items then gc:drawString("v more", platform.window:width() - 48, 202, "top") end
+
+    local countText = tostring(selectedItem) .. "/" .. tostring(#items)
+    gc:drawString(countText, platform.window:width() - gc:getStringWidth(countText) - 12, 220, "top")
+    drawCenteredFitted(gc, "Enter: select   Esc: back", 218, false, 8, 6)
+
+    return scrollOffset
 end
 
 function Menu.move(selectedItem, itemCount, key)
     if key == "up" then
         selectedItem = selectedItem - 1
-        if selectedItem < 1 then
-            selectedItem = itemCount
-        end
+        if selectedItem < 1 then selectedItem = itemCount end
     elseif key == "down" then
         selectedItem = selectedItem + 1
-        if selectedItem > itemCount then
-            selectedItem = 1
-        end
+        if selectedItem > itemCount then selectedItem = 1 end
     end
-
     return selectedItem
-end-- Generic calculator screen.
+end
+-- Generic calculator screen.
 
 Calculator = {}
 Calculator.__index = Calculator
+
+ToolboxState = ToolboxState or {
+    ans = 0,
+    history = {},
+    favorites = {}
+}
 
 local engineeringPrefixes = {
     [-12] = "p", [-9] = "n", [-6] = "u", [-3] = "m",
@@ -458,6 +502,12 @@ local function makeEmptyValues(count)
     local values = {}
     for i = 1, count do values[i] = "" end
     return values
+end
+
+local function copyValues(values)
+    local result = {}
+    for i, value in ipairs(values) do result[i] = value end
+    return result
 end
 
 local function labelWithUnit(item)
@@ -512,8 +562,20 @@ local function parseValues(textValues, allowOneBlank, allowOptionalInputs, minim
     return numbers, missing, nil
 end
 
+local function saveHistory(calculator, numbers, results)
+    local entry = {
+        title = calculator.title,
+        expressions = copyValues(calculator.values),
+        values = copyValues(numbers),
+        results = copyValues(results)
+    }
+    table.insert(ToolboxState.history, 1, entry)
+    while #ToolboxState.history > 20 do table.remove(ToolboxState.history) end
+end
+
 function Calculator.new(definition)
     return setmetatable({
+        id = definition.id,
         title = definition.title,
         subtitle = definition.subtitle,
         inputs = definition.inputs,
@@ -587,7 +649,7 @@ function Calculator:draw(gc)
     elseif self.allowOptionalInputs then
         defaultSubtitle = "Enter values; unused fields may stay blank"
     else
-        defaultSubtitle = "Numbers or expressions; Enter to continue"
+        defaultSubtitle = "Expressions, SI prefixes, or Ans"
     end
     drawCenteredFitted(gc, self.subtitle or defaultSubtitle, 32, false, 9, 7)
     self:drawInputPage(gc)
@@ -639,6 +701,11 @@ function Calculator:calculate()
 
     self.results = calculated
     self.resultOutputs = self.resolveOutputs and self.resolveOutputs(numbers, missing) or self.outputs
+    if type(calculated[1]) == "number" then
+        ToolboxState.ans = calculated[1]
+        expression.setAns(calculated[1])
+    end
+    saveHistory(self, numbers, calculated)
     self.errorMessage = nil
     self.page = "results"
     return true
@@ -661,7 +728,6 @@ end
 
 function Calculator:append(character)
     if self.page ~= "inputs" then return end
-
     local allowedSymbols = ".+-*/^()_ "
     local isDigit = character >= "0" and character <= "9"
     local isLetter = (character >= "a" and character <= "z") or (character >= "A" and character <= "Z")
@@ -681,6 +747,119 @@ function Calculator:backspace()
     self.results = nil
     self.resultOutputs = nil
     self.errorMessage = nil
+end-- Calculation history screen.
+
+HistoryView = {}
+HistoryView.__index = HistoryView
+
+local function fittedText(gc, text, maximumWidth, size)
+    gc:setFont("sansserif", "r", size)
+    if gc:getStringWidth(text) <= maximumWidth then return text end
+
+    local shortened = text
+    while #shortened > 1 and gc:getStringWidth(shortened .. "...") > maximumWidth do
+        shortened = string.sub(shortened, 1, -2)
+    end
+    return shortened .. "..."
+end
+
+local function compactValue(value)
+    if type(value) ~= "number" then return tostring(value) end
+    return string.format("%.6g", value)
+end
+
+function HistoryView.new()
+    return setmetatable({selected = 1, scrollOffset = 0, visibleCount = 6}, HistoryView)
+end
+
+function HistoryView:reset()
+    self.selected = 1
+    self.scrollOffset = 0
+end
+
+function HistoryView:count()
+    return #ToolboxState.history
+end
+
+function HistoryView:ensureVisible()
+    local count = self:count()
+    if count == 0 then
+        self.selected = 1
+        self.scrollOffset = 0
+        return
+    end
+
+    if self.selected < 1 then self.selected = count end
+    if self.selected > count then self.selected = 1 end
+
+    if self.selected <= self.scrollOffset then
+        self.scrollOffset = self.selected - 1
+    elseif self.selected > self.scrollOffset + self.visibleCount then
+        self.scrollOffset = self.selected - self.visibleCount
+    end
+end
+
+function HistoryView:move(key)
+    local count = self:count()
+    if count == 0 then return end
+    if key == "up" then self.selected = self.selected - 1 end
+    if key == "down" then self.selected = self.selected + 1 end
+    self:ensureVisible()
+end
+
+function HistoryView:getSelected()
+    return ToolboxState.history[self.selected]
+end
+
+function HistoryView:clear()
+    ToolboxState.history = {}
+    self:reset()
+end
+
+function HistoryView:draw(gc)
+    local width = platform.window:width()
+    gc:setFont("sansserif", "b", 14)
+    local title = "Calculation History"
+    gc:drawString(title, (width - gc:getStringWidth(title)) / 2, 8, "top")
+
+    if self:count() == 0 then
+        gc:setFont("sansserif", "r", 11)
+        local empty = "No calculations yet"
+        gc:drawString(empty, (width - gc:getStringWidth(empty)) / 2, 95, "top")
+        gc:setFont("sansserif", "r", 8)
+        gc:drawString("Esc: back", (width - gc:getStringWidth("Esc: back")) / 2, 214, "top")
+        return
+    end
+
+    local first = self.scrollOffset + 1
+    local last = math.min(self:count(), self.scrollOffset + self.visibleCount)
+    local y = 42
+
+    for i = first, last do
+        local entry = ToolboxState.history[i]
+        local selected = i == self.selected
+        gc:setFont("sansserif", selected and "b" or "r", 10)
+        local marker = selected and "> " or "  "
+        gc:drawString(marker .. fittedText(gc, entry.title or "Calculation", width - 34, 10), 12, y, "top")
+
+        local resultText = "Result: "
+        if entry.results and #entry.results > 0 then
+            local values = {}
+            for j = 1, math.min(#entry.results, 3) do values[j] = compactValue(entry.results[j]) end
+            resultText = resultText .. table.concat(values, ", ")
+        else
+            resultText = resultText .. "--"
+        end
+        gc:setFont("sansserif", "r", 8)
+        gc:drawString(fittedText(gc, resultText, width - 48, 8), 30, y + 15, "top")
+        y = y + 28
+    end
+
+    gc:setFont("sansserif", "r", 8)
+    if first > 1 then gc:drawString("^ more", width - 48, 31, "top") end
+    if last < self:count() then gc:drawString("v more", width - 48, 198, "top") end
+    local help = "Enter: reopen   Del: clear history   Esc: back"
+    gc:drawString(help, math.max(6, (width - gc:getStringWidth(help)) / 2), 214, "top")
 end
 -- Complex-number calculator definitions.
 
@@ -976,108 +1155,397 @@ function registerCircuitCalculators(calculators)
 end
 -- Electromagnetics calculator definitions.
 
+local EPSILON_0 = 8.854187817e-12
+local MU_0 = 4e-7 * math.pi
+local COULOMB_K = 1 / (4 * math.pi * EPSILON_0)
+
 local function vectorInputs(prefix)
-    return {
-        {label = prefix .. "x"},
-        {label = prefix .. "y"},
-        {label = prefix .. "z"}
-    }
+    return {{label=prefix.."x"},{label=prefix.."y"},{label=prefix.."z"}}
 end
 
 local function twoVectorInputs()
-    return {
-        {label = "Ax"}, {label = "Ay"}, {label = "Az"},
-        {label = "Bx"}, {label = "By"}, {label = "Bz"}
-    }
+    return {{label="Ax"},{label="Ay"},{label="Az"},{label="Bx"},{label="By"},{label="Bz"}}
 end
 
 local function vectorOutputs(prefix)
-    return {
-        {label = prefix .. "x"},
-        {label = prefix .. "y"},
-        {label = prefix .. "z"}
-    }
+    return {{label=prefix.."x"},{label=prefix.."y"},{label=prefix.."z"}}
 end
 
-local function validateNonzeroVector(values, startIndex, name)
-    local x, y, z = values[startIndex], values[startIndex + 1], values[startIndex + 2]
-    if vectors.magnitude(x, y, z) == 0 then
-        return name .. " cannot be the zero vector"
-    end
+local function validateNonzeroVector(v, i, name)
+    if vectors.magnitude(v[i],v[i+1],v[i+2]) == 0 then return name.." cannot be the zero vector" end
+end
+
+local function requirePositive(value, name)
+    if value <= 0 then return name.." must be greater than zero" end
 end
 
 function registerElectromagneticsCalculators(calculators)
-    calculators.vectorMagnitude = Calculator.new({
-        title = "Vector Magnitude",
-        subtitle = "Enter Cartesian components",
-        inputs = vectorInputs("A"),
-        outputs = {{label = "Magnitude"}},
-        calculate = function(v)
-            return vectors.magnitude(v[1], v[2], v[3])
-        end
-    })
+    calculators.vectorMagnitude = Calculator.new({id="vectorMagnitude",title="Vector Magnitude",subtitle="Enter Cartesian components",inputs=vectorInputs("A"),outputs={{label="Magnitude"}},calculate=function(v) return vectors.magnitude(v[1],v[2],v[3]) end})
+    calculators.vectorUnit = Calculator.new({id="vectorUnit",title="Unit Vector",subtitle="Find a unit vector parallel to A",inputs=vectorInputs("A"),outputs=vectorOutputs("u"),validate=function(v) return validateNonzeroVector(v,1,"A") end,calculate=function(v) return vectors.unit(v[1],v[2],v[3]) end})
+    calculators.vectorDot = Calculator.new({id="vectorDot",title="Dot Product",subtitle="Calculate A dot B",inputs=twoVectorInputs(),outputs={{label="A dot B"}},calculate=function(v) return vectors.dot(v[1],v[2],v[3],v[4],v[5],v[6]) end})
+    calculators.vectorCross = Calculator.new({id="vectorCross",title="Cross Product",subtitle="Calculate A x B",inputs=twoVectorInputs(),outputs={{label="Cx"},{label="Cy"},{label="Cz"},{label="Magnitude"}},calculate=function(v) local x,y,z=vectors.cross(v[1],v[2],v[3],v[4],v[5],v[6]); return x,y,z,vectors.magnitude(x,y,z) end})
+    calculators.vectorAngle = Calculator.new({id="vectorAngle",title="Angle Between Vectors",subtitle="Smallest angle from A to B",inputs=twoVectorInputs(),outputs={{label="Angle",unit="degrees"}},validate=function(v) return validateNonzeroVector(v,1,"A") or validateNonzeroVector(v,4,"B") end,calculate=function(v) return vectors.angleDegrees(v[1],v[2],v[3],v[4],v[5],v[6]) end})
+    calculators.vectorProjection = Calculator.new({id="vectorProjection",title="Vector Projection",subtitle="Projection of A onto B",inputs=twoVectorInputs(),outputs=vectorOutputs("P"),validate=function(v) return validateNonzeroVector(v,4,"B") end,calculate=function(v) return vectors.projection(v[1],v[2],v[3],v[4],v[5],v[6]) end})
 
-    calculators.vectorUnit = Calculator.new({
-        title = "Unit Vector",
-        subtitle = "Find a unit vector parallel to A",
-        inputs = vectorInputs("A"),
-        outputs = vectorOutputs("u"),
-        validate = function(v)
-            return validateNonzeroVector(v, 1, "A")
-        end,
-        calculate = function(v)
-            return vectors.unit(v[1], v[2], v[3])
-        end
-    })
+    -- Electrostatics
+    calculators.coulombsLaw = Calculator.new({id="coulombsLaw",title="Coulomb's Law",subtitle="Signed radial force; + repulsive, - attractive",inputs={{label="Charge q1",unit="C"},{label="Charge q2",unit="C"},{label="Separation r",unit="m"},{label="Relative permittivity"}},outputs={{label="Radial force",unit="N"},{label="Magnitude",unit="N"}},validate=function(v) return requirePositive(v[3],"Separation") or requirePositive(v[4],"Relative permittivity") end,calculate=function(v) local f=COULOMB_K*v[1]*v[2]/(v[4]*v[3]^2); return f,math.abs(f) end})
+    calculators.pointChargeField = Calculator.new({id="pointChargeField",title="Point-Charge Electric Field",subtitle="Signed radial field from a point charge",inputs={{label="Source charge q",unit="C"},{label="Distance r",unit="m"},{label="Relative permittivity"}},outputs={{label="Radial E",unit="V/m"},{label="Magnitude",unit="V/m"}},validate=function(v) return requirePositive(v[2],"Distance") or requirePositive(v[3],"Relative permittivity") end,calculate=function(v) local e=COULOMB_K*v[1]/(v[3]*v[2]^2); return e,math.abs(e) end})
+    calculators.pointChargePotential = Calculator.new({id="pointChargePotential",title="Electric Potential",subtitle="Potential due to a point charge, zero at infinity",inputs={{label="Source charge q",unit="C"},{label="Distance r",unit="m"},{label="Relative permittivity"}},outputs={{label="Potential",unit="V"}},validate=function(v) return requirePositive(v[2],"Distance") or requirePositive(v[3],"Relative permittivity") end,calculate=function(v) return COULOMB_K*v[1]/(v[3]*v[2]) end})
+    calculators.forceOnCharge = Calculator.new({id="forceOnCharge",title="Force on a Charge",subtitle="Calculate F = qE in Cartesian components",inputs={{label="Charge q",unit="C"},{label="Ex",unit="V/m"},{label="Ey",unit="V/m"},{label="Ez",unit="V/m"}},outputs={{label="Fx",unit="N"},{label="Fy",unit="N"},{label="Fz",unit="N"},{label="Magnitude",unit="N"}},calculate=function(v) local x,y,z=v[1]*v[2],v[1]*v[3],v[1]*v[4]; return x,y,z,vectors.magnitude(x,y,z) end})
+    calculators.gaussLaw = Calculator.new({id="gaussLaw",title="Gauss's Law",subtitle="Electric flux through a closed surface",inputs={{label="Enclosed charge",unit="C"},{label="Relative permittivity"}},outputs={{label="Electric flux",unit="V*m"}},validate=function(v) return requirePositive(v[2],"Relative permittivity") end,calculate=function(v) return v[1]/(EPSILON_0*v[2]) end})
+    calculators.parallelPlateCapacitance = Calculator.new({id="parallelPlateCapacitance",title="Parallel-Plate Capacitance",subtitle="Ideal plates with uniform dielectric",inputs={{label="Plate area",unit="m^2"},{label="Plate spacing",unit="m"},{label="Relative permittivity"}},outputs={{label="Capacitance",unit="F"}},validate=function(v) return requirePositive(v[1],"Area") or requirePositive(v[2],"Spacing") or requirePositive(v[3],"Relative permittivity") end,calculate=function(v) return EPSILON_0*v[3]*v[1]/v[2] end})
 
-    calculators.vectorDot = Calculator.new({
-        title = "Dot Product",
-        subtitle = "Calculate A dot B",
-        inputs = twoVectorInputs(),
-        outputs = {{label = "A dot B"}},
-        calculate = function(v)
-            return vectors.dot(v[1], v[2], v[3], v[4], v[5], v[6])
-        end
-    })
+    -- Magnetostatics: magnetic fields
+    calculators.infiniteWireField = Calculator.new({id="infiniteWireField",title="Infinite Straight Wire",subtitle="Magnetic field at radial distance r",inputs={{label="Current I",unit="A"},{label="Distance r",unit="m"},{label="Relative permeability"}},outputs={{label="Magnetic field B",unit="T"}},validate=function(v) return requirePositive(v[2],"Distance") or requirePositive(v[3],"Relative permeability") end,calculate=function(v) return MU_0*v[3]*v[1]/(2*math.pi*v[2]) end})
+    calculators.finiteWireField = Calculator.new({id="finiteWireField",title="Finite Straight Wire",subtitle="Point at perpendicular distance r",inputs={{label="Current I",unit="A"},{label="Distance r",unit="m"},{label="Angle alpha1",unit="degrees"},{label="Angle alpha2",unit="degrees"},{label="Relative permeability"}},outputs={{label="Magnetic field B",unit="T"}},validate=function(v) return requirePositive(v[2],"Distance") or requirePositive(v[5],"Relative permeability") end,calculate=function(v) return MU_0*v[5]*v[1]*(math.sin(v[3]*math.pi/180)+math.sin(v[4]*math.pi/180))/(4*math.pi*v[2]) end})
+    calculators.circularLoopField = Calculator.new({id="circularLoopField",title="Circular Loop Field",subtitle="Field at center of an N-turn loop",inputs={{label="Current I",unit="A"},{label="Radius R",unit="m"},{label="Turns N"},{label="Relative permeability"}},outputs={{label="Magnetic field B",unit="T"}},validate=function(v) return requirePositive(v[2],"Radius") or requirePositive(v[3],"Turns") or requirePositive(v[4],"Relative permeability") end,calculate=function(v) return MU_0*v[4]*v[3]*v[1]/(2*v[2]) end})
+    calculators.solenoidField = Calculator.new({id="solenoidField",title="Ideal Solenoid Field",subtitle="Uniform interior field B = mu NI/L",inputs={{label="Current I",unit="A"},{label="Turns N"},{label="Length L",unit="m"},{label="Relative permeability"}},outputs={{label="Magnetic field B",unit="T"}},validate=function(v) return requirePositive(v[2],"Turns") or requirePositive(v[3],"Length") or requirePositive(v[4],"Relative permeability") end,calculate=function(v) return MU_0*v[4]*v[2]*v[1]/v[3] end})
+    calculators.toroidField = Calculator.new({id="toroidField",title="Ideal Toroid Field",subtitle="Field at radius r inside the core",inputs={{label="Current I",unit="A"},{label="Turns N"},{label="Radius r",unit="m"},{label="Relative permeability"}},outputs={{label="Magnetic field B",unit="T"}},validate=function(v) return requirePositive(v[2],"Turns") or requirePositive(v[3],"Radius") or requirePositive(v[4],"Relative permeability") end,calculate=function(v) return MU_0*v[4]*v[2]*v[1]/(2*math.pi*v[3]) end})
 
-    calculators.vectorCross = Calculator.new({
-        title = "Cross Product",
-        subtitle = "Calculate A x B",
-        inputs = twoVectorInputs(),
-        outputs = {
-            {label = "Cx"}, {label = "Cy"}, {label = "Cz"},
-            {label = "Magnitude"}
+    -- Magnetostatics: forces and torque
+    calculators.movingChargeMagneticForce = Calculator.new({id="movingChargeMagneticForce",title="Force on Moving Charge",subtitle="F = q(v x B)",inputs={{label="Charge q",unit="C"},{label="vx",unit="m/s"},{label="vy",unit="m/s"},{label="vz",unit="m/s"},{label="Bx",unit="T"},{label="By",unit="T"},{label="Bz",unit="T"}},outputs={{label="Fx",unit="N"},{label="Fy",unit="N"},{label="Fz",unit="N"},{label="Magnitude",unit="N"}},visibleInputCount=5,calculate=function(v) local x,y,z=vectors.cross(v[2],v[3],v[4],v[5],v[6],v[7]); x,y,z=v[1]*x,v[1]*y,v[1]*z; return x,y,z,vectors.magnitude(x,y,z) end})
+    calculators.currentWireForce = Calculator.new({id="currentWireForce",title="Force on Current-Carrying Wire",subtitle="F = I(L x B)",inputs={{label="Current I",unit="A"},{label="Lx",unit="m"},{label="Ly",unit="m"},{label="Lz",unit="m"},{label="Bx",unit="T"},{label="By",unit="T"},{label="Bz",unit="T"}},outputs={{label="Fx",unit="N"},{label="Fy",unit="N"},{label="Fz",unit="N"},{label="Magnitude",unit="N"}},visibleInputCount=5,calculate=function(v) local x,y,z=vectors.cross(v[2],v[3],v[4],v[5],v[6],v[7]); x,y,z=v[1]*x,v[1]*y,v[1]*z; return x,y,z,vectors.magnitude(x,y,z) end})
+    calculators.parallelWireForce = Calculator.new({id="parallelWireForce",title="Force Between Parallel Wires",subtitle="Signed F/L; + same current direction",inputs={{label="Current I1",unit="A"},{label="Current I2",unit="A"},{label="Separation d",unit="m"},{label="Relative permeability"}},outputs={{label="Force per length",unit="N/m"},{label="Magnitude",unit="N/m"}},validate=function(v) return requirePositive(v[3],"Separation") or requirePositive(v[4],"Relative permeability") end,calculate=function(v) local f=MU_0*v[4]*v[1]*v[2]/(2*math.pi*v[3]); return f,math.abs(f) end})
+    calculators.currentLoopTorque = Calculator.new({id="currentLoopTorque",title="Torque on Current Loop",subtitle="Magnitude tau = NIAB sin(theta)",inputs={{label="Turns N"},{label="Current I",unit="A"},{label="Loop area A",unit="m^2"},{label="Magnetic field B",unit="T"},{label="Angle theta",unit="degrees"}},outputs={{label="Torque",unit="N*m"},{label="Magnetic moment",unit="A*m^2"}},validate=function(v) return requirePositive(v[1],"Turns") or requirePositive(v[3],"Area") or requirePositive(v[4],"Magnetic field") end,calculate=function(v) local m=v[1]*v[2]*v[3]; return m*v[4]*math.sin(v[5]*math.pi/180),m end})
+
+    -- Flux, induction, and inductance
+    calculators.magneticFlux = Calculator.new({id="magneticFlux",title="Magnetic Flux",subtitle="Uniform field through a flat surface",inputs={{label="Magnetic field B",unit="T"},{label="Area A",unit="m^2"},{label="Angle theta",unit="degrees"}},outputs={{label="Magnetic flux",unit="Wb"}},validate=function(v) return requirePositive(v[2],"Area") end,calculate=function(v) return v[1]*v[2]*math.cos(v[3]*math.pi/180) end})
+    calculators.faradayLaw = Calculator.new({id="faradayLaw",title="Faraday's Law",subtitle="Average induced EMF = -N DeltaPhi/Delta t",inputs={{label="Turns N"},{label="Initial flux",unit="Wb"},{label="Final flux",unit="Wb"},{label="Time interval",unit="s"}},outputs={{label="Induced EMF",unit="V"},{label="Magnitude",unit="V"}},validate=function(v) return requirePositive(v[1],"Turns") or requirePositive(v[4],"Time interval") end,calculate=function(v) local e=-v[1]*(v[3]-v[2])/v[4]; return e,math.abs(e) end})
+    calculators.solenoidInductance = Calculator.new({id="solenoidInductance",title="Solenoid Inductance",subtitle="Ideal L = mu N^2 A / length",inputs={{label="Turns N"},{label="Area A",unit="m^2"},{label="Length",unit="m"},{label="Relative permeability"}},outputs={{label="Inductance",unit="H"}},validate=function(v) return requirePositive(v[1],"Turns") or requirePositive(v[2],"Area") or requirePositive(v[3],"Length") or requirePositive(v[4],"Relative permeability") end,calculate=function(v) return MU_0*v[4]*v[1]^2*v[2]/v[3] end})
+    calculators.mutualInductance = Calculator.new({id="mutualInductance",title="Mutual Inductance",subtitle="M = k sqrt(L1 L2)",inputs={{label="Inductance L1",unit="H"},{label="Inductance L2",unit="H"},{label="Coupling coefficient k"}},outputs={{label="Mutual inductance",unit="H"}},validate=function(v) if v[1] <= 0 or v[2] <= 0 then return "Inductances must be greater than zero" end; if v[3] < 0 or v[3] > 1 then return "Coupling coefficient must be from 0 to 1" end end,calculate=function(v) return v[3]*math.sqrt(v[1]*v[2]) end})
+    calculators.inductorEnergy = Calculator.new({id="inductorEnergy",title="Energy Stored in Inductor",subtitle="W = 1/2 L I^2",inputs={{label="Inductance L",unit="H"},{label="Current I",unit="A"}},outputs={{label="Stored energy",unit="J"}},validate=function(v) return requirePositive(v[1],"Inductance") end,calculate=function(v) return 0.5*v[1]*v[2]^2 end})
+end
+-- Electromagnetic wave calculator definitions.
+
+local WAVE_EPSILON_0 = 8.854187817e-12
+local WAVE_MU_0 = 4e-7 * math.pi
+local C_0 = 1 / math.sqrt(WAVE_MU_0 * WAVE_EPSILON_0)
+local ETA_0 = math.sqrt(WAVE_MU_0 / WAVE_EPSILON_0)
+
+local function waveRequirePositive(value, name)
+    if value <= 0 then return name .. " must be greater than zero" end
+end
+
+local function waveValidateMaterial(v, erIndex, mrIndex)
+    return waveRequirePositive(v[erIndex], "Relative permittivity") or
+        waveRequirePositive(v[mrIndex], "Relative permeability")
+end
+
+function registerWaveCalculators(calculators)
+    calculators.waveSpeed = Calculator.new({
+        id = "waveSpeed",
+        title = "Wave Speed",
+        subtitle = "Lossless homogeneous medium",
+        inputs = {
+            {label = "Relative permittivity"},
+            {label = "Relative permeability"}
         },
+        outputs = {{label = "Wave speed", unit = "m/s"}},
+        validate = function(v) return waveValidateMaterial(v, 1, 2) end,
+        calculate = function(v) return C_0 / math.sqrt(v[1] * v[2]) end
+    })
+
+    calculators.intrinsicImpedance = Calculator.new({
+        id = "intrinsicImpedance",
+        title = "Intrinsic Impedance",
+        subtitle = "Lossless homogeneous medium",
+        inputs = {
+            {label = "Relative permittivity"},
+            {label = "Relative permeability"}
+        },
+        outputs = {{label = "Intrinsic impedance", unit = "ohm"}},
+        validate = function(v) return waveValidateMaterial(v, 1, 2) end,
+        calculate = function(v) return ETA_0 * math.sqrt(v[2] / v[1]) end
+    })
+
+    calculators.waveWavelength = Calculator.new({
+        id = "waveWavelength",
+        title = "Wavelength",
+        subtitle = "lambda = v/f for a lossless medium",
+        inputs = {
+            {label = "Frequency f", unit = "Hz"},
+            {label = "Relative permittivity"},
+            {label = "Relative permeability"}
+        },
+        outputs = {
+            {label = "Wavelength", unit = "m"},
+            {label = "Wave speed", unit = "m/s"},
+            {label = "Phase constant", unit = "rad/m"}
+        },
+        validate = function(v)
+            return waveRequirePositive(v[1], "Frequency") or waveValidateMaterial(v, 2, 3)
+        end,
         calculate = function(v)
-            local x, y, z = vectors.cross(v[1], v[2], v[3], v[4], v[5], v[6])
-            return x, y, z, vectors.magnitude(x, y, z)
+            local speed = C_0 / math.sqrt(v[2] * v[3])
+            local wavelength = speed / v[1]
+            return wavelength, speed, 2 * math.pi / wavelength
         end
     })
 
-    calculators.vectorAngle = Calculator.new({
-        title = "Angle Between Vectors",
-        subtitle = "Smallest angle from A to B",
-        inputs = twoVectorInputs(),
-        outputs = {{label = "Angle", unit = "degrees"}},
+    calculators.lossyPropagation = Calculator.new({
+        id = "lossyPropagation",
+        title = "Propagation Constant",
+        subtitle = "General lossy homogeneous medium",
+        inputs = {
+            {label = "Frequency f", unit = "Hz"},
+            {label = "Conductivity sigma", unit = "S/m"},
+            {label = "Relative permittivity"},
+            {label = "Relative permeability"}
+        },
+        outputs = {
+            {label = "Attenuation alpha", unit = "Np/m"},
+            {label = "Phase beta", unit = "rad/m"},
+            {label = "Wavelength", unit = "m"},
+            {label = "Phase velocity", unit = "m/s"}
+        },
         validate = function(v)
-            return validateNonzeroVector(v, 1, "A") or
-                validateNonzeroVector(v, 4, "B")
+            if v[2] < 0 then return "Conductivity cannot be negative" end
+            return waveRequirePositive(v[1], "Frequency") or waveValidateMaterial(v, 3, 4)
         end,
         calculate = function(v)
-            return vectors.angleDegrees(v[1], v[2], v[3], v[4], v[5], v[6])
+            local omega = 2 * math.pi * v[1]
+            local epsilon = WAVE_EPSILON_0 * v[3]
+            local mu = WAVE_MU_0 * v[4]
+            local ratio = v[2] / (omega * epsilon)
+            local root = math.sqrt(1 + ratio ^ 2)
+            local common = omega * math.sqrt(mu * epsilon / 2)
+            local alpha = common * math.sqrt(root - 1)
+            local beta = common * math.sqrt(root + 1)
+            return alpha, beta, 2 * math.pi / beta, omega / beta
         end
     })
 
-    calculators.vectorProjection = Calculator.new({
-        title = "Vector Projection",
-        subtitle = "Projection of A onto B",
-        inputs = twoVectorInputs(),
-        outputs = vectorOutputs("P"),
+    calculators.skinDepth = Calculator.new({
+        id = "skinDepth",
+        title = "Skin Depth",
+        subtitle = "Good-conductor approximation",
+        inputs = {
+            {label = "Frequency f", unit = "Hz"},
+            {label = "Conductivity sigma", unit = "S/m"},
+            {label = "Relative permeability"}
+        },
+        outputs = {
+            {label = "Skin depth", unit = "m"},
+            {label = "Attenuation alpha", unit = "Np/m"}
+        },
         validate = function(v)
-            return validateNonzeroVector(v, 4, "B")
+            return waveRequirePositive(v[1], "Frequency") or
+                waveRequirePositive(v[2], "Conductivity") or
+                waveRequirePositive(v[3], "Relative permeability")
         end,
         calculate = function(v)
-            return vectors.projection(v[1], v[2], v[3], v[4], v[5], v[6])
+            local delta = math.sqrt(2 / (2 * math.pi * v[1] * WAVE_MU_0 * v[3] * v[2]))
+            return delta, 1 / delta
+        end
+    })
+
+    calculators.powerDensity = Calculator.new({
+        id = "powerDensity",
+        title = "Plane-Wave Power Density",
+        subtitle = "Time-average power from peak electric field",
+        inputs = {
+            {label = "Peak electric field", unit = "V/m"},
+            {label = "Relative permittivity"},
+            {label = "Relative permeability"}
+        },
+        outputs = {
+            {label = "Power density", unit = "W/m^2"},
+            {label = "Intrinsic impedance", unit = "ohm"},
+            {label = "Peak magnetic field", unit = "A/m"}
+        },
+        validate = function(v) return waveValidateMaterial(v, 2, 3) end,
+        calculate = function(v)
+            local eta = ETA_0 * math.sqrt(v[3] / v[2])
+            return v[1] ^ 2 / (2 * eta), eta, v[1] / eta
+        end
+    })
+end
+-- Lossless transmission-line calculator definitions.
+
+local function tlRequirePositive(value, name)
+    if value <= 0 then return name .. " must be greater than zero" end
+end
+
+local function cAdd(ar, ai, br, bi) return ar + br, ai + bi end
+local function cSub(ar, ai, br, bi) return ar - br, ai - bi end
+local function cMul(ar, ai, br, bi) return ar * br - ai * bi, ar * bi + ai * br end
+local function cDiv(ar, ai, br, bi)
+    local denominator = br * br + bi * bi
+    if denominator == 0 then error("complex division by zero") end
+    return (ar * br + ai * bi) / denominator, (ai * br - ar * bi) / denominator
+end
+local function cMagnitude(r, i) return math.sqrt(r * r + i * i) end
+local function cAngleDegrees(r, i) return math.atan2(i, r) * 180 / math.pi end
+
+function registerTransmissionCalculators(calculators)
+    calculators.reflectionCoefficient = Calculator.new({
+        id = "reflectionCoefficient",
+        title = "Reflection Coefficient",
+        subtitle = "Gamma = (ZL - Z0)/(ZL + Z0)",
+        inputs = {
+            {label = "Load resistance", unit = "ohm"},
+            {label = "Load reactance", unit = "ohm"},
+            {label = "Characteristic Z0", unit = "ohm"}
+        },
+        outputs = {
+            {label = "Gamma real"},
+            {label = "Gamma imag"},
+            {label = "Magnitude"},
+            {label = "Angle", unit = "degrees"}
+        },
+        validate = function(v) return tlRequirePositive(v[3], "Characteristic impedance") end,
+        calculate = function(v)
+            local nr, ni = cSub(v[1], v[2], v[3], 0)
+            local dr, di = cAdd(v[1], v[2], v[3], 0)
+            local gr, gi = cDiv(nr, ni, dr, di)
+            return gr, gi, cMagnitude(gr, gi), cAngleDegrees(gr, gi)
+        end
+    })
+
+    calculators.loadFromReflection = Calculator.new({
+        id = "loadFromReflection",
+        title = "Load from Reflection Coefficient",
+        subtitle = "ZL = Z0(1 + Gamma)/(1 - Gamma)",
+        inputs = {
+            {label = "Gamma real"},
+            {label = "Gamma imag"},
+            {label = "Characteristic Z0", unit = "ohm"}
+        },
+        outputs = {
+            {label = "Load resistance", unit = "ohm"},
+            {label = "Load reactance", unit = "ohm"},
+            {label = "Load magnitude", unit = "ohm"},
+            {label = "Load angle", unit = "degrees"}
+        },
+        validate = function(v)
+            return tlRequirePositive(v[3], "Characteristic impedance")
+        end,
+        calculate = function(v)
+            local nr, ni = 1 + v[1], v[2]
+            local dr, di = 1 - v[1], -v[2]
+            local zr, zi = cDiv(nr, ni, dr, di)
+            zr, zi = v[3] * zr, v[3] * zi
+            return zr, zi, cMagnitude(zr, zi), cAngleDegrees(zr, zi)
+        end
+    })
+
+    calculators.vswr = Calculator.new({
+        id = "vswr",
+        title = "VSWR",
+        subtitle = "VSWR = (1 + |Gamma|)/(1 - |Gamma|)",
+        inputs = {{label = "Reflection magnitude"}},
+        outputs = {{label = "VSWR"}},
+        validate = function(v)
+            if v[1] < 0 or v[1] >= 1 then return "Reflection magnitude must be from 0 to less than 1" end
+        end,
+        calculate = function(v) return (1 + v[1]) / (1 - v[1]) end
+    })
+
+    calculators.returnLoss = Calculator.new({
+        id = "returnLoss",
+        title = "Return and Mismatch Loss",
+        subtitle = "Losses from reflection coefficient magnitude",
+        inputs = {{label = "Reflection magnitude"}},
+        outputs = {
+            {label = "Return loss", unit = "dB"},
+            {label = "Mismatch loss", unit = "dB"},
+            {label = "Reflected power", unit = "%"},
+            {label = "Delivered power", unit = "%"}
+        },
+        validate = function(v)
+            if v[1] < 0 or v[1] >= 1 then return "Reflection magnitude must be from 0 to less than 1" end
+        end,
+        calculate = function(v)
+            local g2 = v[1] ^ 2
+            local returnLoss = v[1] == 0 and 1e99 or -20 * math.log(v[1]) / math.log(10)
+            local mismatchLoss = -10 * math.log(1 - g2) / math.log(10)
+            return returnLoss, mismatchLoss, 100 * g2, 100 * (1 - g2)
+        end
+    })
+
+    calculators.losslessInputImpedance = Calculator.new({
+        id = "losslessInputImpedance",
+        title = "Input Impedance",
+        subtitle = "Lossless line: Zin at distance l from load",
+        inputs = {
+            {label = "Load resistance", unit = "ohm"},
+            {label = "Load reactance", unit = "ohm"},
+            {label = "Characteristic Z0", unit = "ohm"},
+            {label = "Phase constant beta", unit = "rad/m"},
+            {label = "Line length l", unit = "m"}
+        },
+        outputs = {
+            {label = "Input resistance", unit = "ohm"},
+            {label = "Input reactance", unit = "ohm"},
+            {label = "Input magnitude", unit = "ohm"},
+            {label = "Input angle", unit = "degrees"}
+        },
+        validate = function(v)
+            return tlRequirePositive(v[3], "Characteristic impedance") or
+                tlRequirePositive(v[4], "Phase constant") or
+                (v[5] < 0 and "Line length cannot be negative" or nil)
+        end,
+        calculate = function(v)
+            local tangent = math.tan(v[4] * v[5])
+            local nr, ni = v[1], v[2] + v[3] * tangent
+            local zrT, ziT = cMul(v[1], v[2], 0, tangent)
+            local dr, di = v[3] + zrT, ziT
+            local rr, ri = cDiv(nr, ni, dr, di)
+            rr, ri = v[3] * rr, v[3] * ri
+            return rr, ri, cMagnitude(rr, ri), cAngleDegrees(rr, ri)
+        end
+    })
+
+    calculators.quarterWaveTransformer = Calculator.new({
+        id = "quarterWaveTransformer",
+        title = "Quarter-Wave Transformer",
+        subtitle = "Match two positive real impedances",
+        inputs = {
+            {label = "Source line Z0", unit = "ohm"},
+            {label = "Load resistance", unit = "ohm"},
+            {label = "Frequency f", unit = "Hz"},
+            {label = "Wave velocity", unit = "m/s"}
+        },
+        outputs = {
+            {label = "Transformer impedance", unit = "ohm"},
+            {label = "Quarter-wave length", unit = "m"},
+            {label = "Wavelength", unit = "m"}
+        },
+        validate = function(v)
+            return tlRequirePositive(v[1], "Source impedance") or
+                tlRequirePositive(v[2], "Load resistance") or
+                tlRequirePositive(v[3], "Frequency") or
+                tlRequirePositive(v[4], "Wave velocity")
+        end,
+        calculate = function(v)
+            local wavelength = v[4] / v[3]
+            return math.sqrt(v[1] * v[2]), wavelength / 4, wavelength
+        end
+    })
+
+    calculators.electricalLength = Calculator.new({
+        id = "electricalLength",
+        title = "Electrical Length",
+        subtitle = "Convert physical length to phase",
+        inputs = {
+            {label = "Line length", unit = "m"},
+            {label = "Frequency f", unit = "Hz"},
+            {label = "Wave velocity", unit = "m/s"}
+        },
+        outputs = {
+            {label = "Electrical length", unit = "degrees"},
+            {label = "Electrical length", unit = "rad"},
+            {label = "Wavelengths"},
+            {label = "Wavelength", unit = "m"}
+        },
+        validate = function(v)
+            if v[1] < 0 then return "Line length cannot be negative" end
+            return tlRequirePositive(v[2], "Frequency") or tlRequirePositive(v[3], "Wave velocity")
+        end,
+        calculate = function(v)
+            local wavelength = v[3] / v[2]
+            local cycles = v[1] / wavelength
+            return 360 * cycles, 2 * math.pi * cycles, cycles, wavelength
         end
     })
 end
@@ -1199,234 +1667,101 @@ local calculators = {}
 registerComplexCalculators(calculators)
 registerCircuitCalculators(calculators)
 registerElectromagneticsCalculators(calculators)
+registerWaveCalculators(calculators)
+registerTransmissionCalculators(calculators)
 registerCoordinateCalculators(calculators)
 
-local complexArithmeticMenu = {
-    title = "Complex Arithmetic",
-    subtitle = "Choose an operation",
-    items = {
-        {label = "Add", calculator = "complexAdd"},
-        {label = "Subtract", calculator = "complexSubtract"},
-        {label = "Multiply", calculator = "complexMultiply"},
-        {label = "Divide", calculator = "complexDivide"}
-    }
-}
+local complexArithmeticMenu={title="Complex Arithmetic",subtitle="Choose an operation",items={{label="Add",calculator="complexAdd"},{label="Subtract",calculator="complexSubtract"},{label="Multiply",calculator="complexMultiply"},{label="Divide",calculator="complexDivide"}}}
+local complexMenu={title="Complex Numbers",subtitle="Enter to select, Esc to return",items={{label="Rectangular to Polar",calculator="rectToPolar"},{label="Polar to Rectangular",calculator="polarToRect"},{label="Magnitude and Phase",calculator="magnitudePhase"},{label="Complex Arithmetic",menu=complexArithmeticMenu}}}
 
-local complexMenu = {
-    title = "Complex Numbers",
-    subtitle = "Enter to select, Esc to return",
-    items = {
-        {label = "Rectangular to Polar", calculator = "rectToPolar"},
-        {label = "Polar to Rectangular", calculator = "polarToRect"},
-        {label = "Magnitude and Phase", calculator = "magnitudePhase"},
-        {label = "Complex Arithmetic", menu = complexArithmeticMenu}
-    }
-}
+local basicCircuitsMenu={title="Basic Circuits",subtitle="Enter to select, Esc to return",items={{label="Ohm's Law",calculator="ohmsLaw"},{label="Electrical Power",calculator="electricalPower"},{label="Voltage Divider",calculator="voltageDivider"},{label="Current Divider",calculator="currentDivider"}}}
+local resistorNetworksMenu={title="Resistor Networks",subtitle="Equivalent resistance and conversions",items={{label="Series Resistance",calculator="seriesResistance"},{label="Parallel Resistance",calculator="parallelResistance"},{label="Delta to Wye",calculator="deltaToWye"},{label="Wye to Delta",calculator="wyeToDelta"}}}
+local sourceTransformationMenu={title="Source Transformation",subtitle="Choose the source conversion direction",items={{label="Voltage to Current",calculator="voltageToCurrentSource"},{label="Current to Voltage",calculator="currentToVoltageSource"}}}
+local equivalentConversionMenu={title="Thevenin and Norton",subtitle="Choose the equivalent conversion direction",items={{label="Thevenin to Norton",calculator="theveninToNorton"},{label="Norton to Thevenin",calculator="nortonToThevenin"}}}
+local networkTheoremsMenu={title="Network Theorems",subtitle="Source and equivalent-circuit conversions",items={{label="Thevenin / Norton",menu=equivalentConversionMenu},{label="Source Transformation",menu=sourceTransformationMenu}}}
+local equationSolversMenu={title="Equation Solvers",subtitle="Solve circuit equation systems",items={{label="Two-Mesh Solver",calculator="meshTwo"},{label="Three-Mesh Solver"}}}
+local circuitMenu={title="Circuit Analysis",subtitle="Choose a category",items={{label="Basic Circuits",menu=basicCircuitsMenu},{label="Resistor Networks",menu=resistorNetworksMenu},{label="Network Theorems",menu=networkTheoremsMenu},{label="Equation Solvers",menu=equationSolversMenu}}}
 
-local basicCircuitsMenu = {
-    title = "Basic Circuits",
-    subtitle = "Enter to select, Esc to return",
-    items = {
-        {label = "Ohm's Law", calculator = "ohmsLaw"},
-        {label = "Electrical Power", calculator = "electricalPower"},
-        {label = "Voltage Divider", calculator = "voltageDivider"},
-        {label = "Current Divider", calculator = "currentDivider"}
-    }
-}
+local vectorOperationsMenu={title="Vector Operations",subtitle="Three-dimensional Cartesian vectors",items={{label="Magnitude",calculator="vectorMagnitude"},{label="Unit Vector",calculator="vectorUnit"},{label="Dot Product",calculator="vectorDot"},{label="Cross Product",calculator="vectorCross"},{label="Angle Between",calculator="vectorAngle"},{label="Projection A onto B",calculator="vectorProjection"}}}
+local coordinateSystemsMenu={title="Coordinate Systems",subtitle="Points and vector components",items={{label="Cartesian to Cylindrical",calculator="cartesianToCylindrical"},{label="Cylindrical to Cartesian",calculator="cylindricalToCartesian"},{label="Cartesian to Spherical",calculator="cartesianToSpherical"},{label="Spherical to Cartesian",calculator="sphericalToCartesian"},{label="Cyl Vector to Cartesian",calculator="cylindricalVectorToCartesian"},{label="Sph Vector to Cartesian",calculator="sphericalVectorToCartesian"}}}
+local generalMathMenu={title="General Math",subtitle="Reusable mathematical tools",items={{label="Vector Operations",menu=vectorOperationsMenu},{label="Coordinate Systems",menu=coordinateSystemsMenu}}}
 
-local resistorNetworksMenu = {
-    title = "Resistor Networks",
-    subtitle = "Equivalent resistance and conversions",
-    items = {
-        {label = "Series Resistance", calculator = "seriesResistance"},
-        {label = "Parallel Resistance", calculator = "parallelResistance"},
-        {label = "Delta to Wye", calculator = "deltaToWye"},
-        {label = "Wye to Delta", calculator = "wyeToDelta"}
-    }
-}
+local electrostaticsMenu={title="Electrostatics",subtitle="Charges, fields, flux, and capacitance",items={{label="Coulomb's Law",calculator="coulombsLaw"},{label="Point-Charge Electric Field",calculator="pointChargeField"},{label="Electric Potential",calculator="pointChargePotential"},{label="Force on a Charge",calculator="forceOnCharge"},{label="Gauss's Law",calculator="gaussLaw"},{label="Parallel-Plate Capacitance",calculator="parallelPlateCapacitance"}}}
 
-local sourceTransformationMenu = {
-    title = "Source Transformation",
-    subtitle = "Choose the source conversion direction",
-    items = {
-        {label = "Voltage to Current", calculator = "voltageToCurrentSource"},
-        {label = "Current to Voltage", calculator = "currentToVoltageSource"}
-    }
-}
+local magneticFieldsMenu={title="Magnetic Fields",subtitle="Fields from common current distributions",items={{label="Infinite Straight Wire",calculator="infiniteWireField"},{label="Finite Straight Wire",calculator="finiteWireField"},{label="Circular Loop",calculator="circularLoopField"},{label="Ideal Solenoid",calculator="solenoidField"},{label="Ideal Toroid",calculator="toroidField"}}}
+local magneticForcesMenu={title="Magnetic Forces",subtitle="Lorentz force, wire force, and torque",items={{label="Force on Moving Charge",calculator="movingChargeMagneticForce"},{label="Force on Current-Carrying Wire",calculator="currentWireForce"},{label="Force Between Parallel Wires",calculator="parallelWireForce"},{label="Torque on Current Loop",calculator="currentLoopTorque"}}}
+local magneticFluxMenu={title="Flux and Induction",subtitle="Magnetic flux and Faraday's law",items={{label="Magnetic Flux",calculator="magneticFlux"},{label="Faraday's Law",calculator="faradayLaw"}}}
+local inductanceMenu={title="Inductance",subtitle="Self, mutual, and stored energy",items={{label="Ideal Solenoid Inductance",calculator="solenoidInductance"},{label="Mutual Inductance",calculator="mutualInductance"},{label="Energy Stored",calculator="inductorEnergy"}}}
+local magnetostaticsMenu={title="Magnetostatics",subtitle="Fields, forces, flux, and inductance",items={{label="Magnetic Fields",menu=magneticFieldsMenu},{label="Magnetic Forces",menu=magneticForcesMenu},{label="Flux and Induction",menu=magneticFluxMenu},{label="Inductance",menu=inductanceMenu}}}
 
-local equivalentConversionMenu = {
-    title = "Thevenin and Norton",
-    subtitle = "Choose the equivalent conversion direction",
-    items = {
-        {label = "Thevenin to Norton", calculator = "theveninToNorton"},
-        {label = "Norton to Thevenin", calculator = "nortonToThevenin"}
-    }
-}
+local wavesMenu={title="Electromagnetic Waves",subtitle="Wave properties and lossy media",items={{label="Wave Speed",calculator="waveSpeed"},{label="Intrinsic Impedance",calculator="intrinsicImpedance"},{label="Wavelength",calculator="waveWavelength"},{label="Propagation Constant",calculator="lossyPropagation"},{label="Skin Depth",calculator="skinDepth"},{label="Plane-Wave Power Density",calculator="powerDensity"}}}
 
-local networkTheoremsMenu = {
-    title = "Network Theorems",
-    subtitle = "Source and equivalent-circuit conversions",
-    items = {
-        {label = "Thevenin / Norton", menu = equivalentConversionMenu},
-        {label = "Source Transformation", menu = sourceTransformationMenu}
-    }
-}
+local transmissionMetricsMenu={title="Reflection and Matching",subtitle="Reflection, standing waves, and losses",items={{label="Reflection Coefficient",calculator="reflectionCoefficient"},{label="Load from Reflection",calculator="loadFromReflection"},{label="VSWR",calculator="vswr"},{label="Return and Mismatch Loss",calculator="returnLoss"}}}
+local transmissionTransformsMenu={title="Line Transformations",subtitle="Impedance and electrical length",items={{label="Input Impedance",calculator="losslessInputImpedance"},{label="Quarter-Wave Transformer",calculator="quarterWaveTransformer"},{label="Electrical Length",calculator="electricalLength"}}}
+local transmissionLinesMenu={title="Transmission Lines",subtitle="Lossless-line analysis tools",items={{label="Reflection and Matching",menu=transmissionMetricsMenu},{label="Line Transformations",menu=transmissionTransformsMenu}}}
 
-local equationSolversMenu = {
-    title = "Equation Solvers",
-    subtitle = "Solve circuit equation systems",
-    items = {
-        {label = "Two-Mesh Solver", calculator = "meshTwo"},
-        {label = "Three-Mesh Solver"}
-    }
-}
+local electromagneticsMenu={title="Electromagnetics",subtitle="ECE 216 tools",items={{label="Electrostatics",menu=electrostaticsMenu},{label="Magnetostatics",menu=magnetostaticsMenu},{label="Waves",menu=wavesMenu},{label="Transmission Lines",menu=transmissionLinesMenu}}}
 
-local circuitMenu = {
-    title = "Circuit Analysis",
-    subtitle = "Choose a category",
-    items = {
-        {label = "Basic Circuits", menu = basicCircuitsMenu},
-        {label = "Resistor Networks", menu = resistorNetworksMenu},
-        {label = "Network Theorems", menu = networkTheoremsMenu},
-        {label = "Equation Solvers", menu = equationSolversMenu}
-    }
-}
+local rootMenu={title="Engineering Toolbox",subtitle="Use arrows and Enter",items={{label="History",special="history"},{label="Complex Numbers",menu=complexMenu},{label="Circuit Analysis",menu=circuitMenu},{label="Electromagnetics",menu=electromagneticsMenu},{label="Linear Algebra"},{label="Signals and Systems"},{label="General Math",menu=generalMathMenu}}}
 
-local vectorOperationsMenu = {
-    title = "Vector Operations",
-    subtitle = "Three-dimensional Cartesian vectors",
-    items = {
-        {label = "Magnitude", calculator = "vectorMagnitude"},
-        {label = "Unit Vector", calculator = "vectorUnit"},
-        {label = "Dot Product", calculator = "vectorDot"},
-        {label = "Cross Product", calculator = "vectorCross"},
-        {label = "Angle Between", calculator = "vectorAngle"},
-        {label = "Projection A onto B", calculator = "vectorProjection"}
-    }
-}
+local menuStack={{menu=rootMenu,selected=1}}
+local activeCalculator=nil
+local historyView=HistoryView.new()
+local showingHistory=false
 
-local coordinateSystemsMenu = {
-    title = "Coordinate Systems",
-    subtitle = "Points and vector components",
-    items = {
-        {label = "Cartesian to Cylindrical", calculator = "cartesianToCylindrical"},
-        {label = "Cylindrical to Cartesian", calculator = "cylindricalToCartesian"},
-        {label = "Cartesian to Spherical", calculator = "cartesianToSpherical"},
-        {label = "Spherical to Cartesian", calculator = "sphericalToCartesian"},
-        {label = "Cyl Vector to Cartesian", calculator = "cylindricalVectorToCartesian"},
-        {label = "Sph Vector to Cartesian", calculator = "sphericalVectorToCartesian"}
-    }
-}
+local function currentFrame() return menuStack[#menuStack] end
+local function menuLabels(menu) local labels={}; for i,item in ipairs(menu.items) do labels[i]=item.label end; return labels end
 
-local generalMathMenu = {
-    title = "General Math",
-    subtitle = "Reusable mathematical tools",
-    items = {
-        {label = "Vector Operations", menu = vectorOperationsMenu},
-        {label = "Coordinate Systems", menu = coordinateSystemsMenu}
-    }
-}
-
-local electromagneticsMenu = {
-    title = "Electromagnetics",
-    subtitle = "ECE 216 tools",
-    items = {
-        {label = "Electrostatics"},
-        {label = "Magnetostatics"},
-        {label = "Waves"},
-        {label = "Transmission Lines"}
-    }
-}
-
-local rootMenu = {
-    title = "Engineering Toolbox",
-    subtitle = "Use arrows and Enter",
-    items = {
-        {label = "Complex Numbers", menu = complexMenu},
-        {label = "Circuit Analysis", menu = circuitMenu},
-        {label = "Electromagnetics", menu = electromagneticsMenu},
-        {label = "Linear Algebra"},
-        {label = "Signals and Systems"},
-        {label = "General Math", menu = generalMathMenu}
-    }
-}
-
-local menuStack = {{menu = rootMenu, selected = 1}}
-local activeCalculator = nil
-
-local function currentFrame()
-    return menuStack[#menuStack]
-end
-
-local function menuLabels(menu)
-    local labels = {}
-    for i, item in ipairs(menu.items) do labels[i] = item.label end
-    return labels
-end
-
-local function openCalculator(name)
-    activeCalculator = calculators[name]
+local function openCalculator(name,expressions)
+    activeCalculator=calculators[name]
+    if not activeCalculator then return false end
     activeCalculator:reset()
+    if expressions then for i=1,math.min(#expressions,#activeCalculator.values) do activeCalculator.values[i]=expressions[i] or "" end end
+    return true
+end
+
+local function reopenHistoryEntry(entry)
+    if not entry then return end
+    for name,calculator in pairs(calculators) do
+        if calculator.title==entry.title and openCalculator(name,entry.expressions) then showingHistory=false; return end
+    end
 end
 
 local function openSelectedMenuItem()
-    local frame = currentFrame()
-    local item = frame.menu.items[frame.selected]
-    if item.menu then
-        menuStack[#menuStack + 1] = {menu = item.menu, selected = 1}
-    elseif item.calculator then
-        openCalculator(item.calculator)
-    end
+    local frame=currentFrame()
+    local item=frame.menu.items[frame.selected]
+    if item.menu then menuStack[#menuStack+1]={menu=item.menu,selected=1}
+    elseif item.calculator then openCalculator(item.calculator)
+    elseif item.special=="history" then historyView:reset(); showingHistory=true end
 end
 
 function on.paint(gc)
-    if activeCalculator then
-        activeCalculator:draw(gc)
-        return
-    end
-    local frame = currentFrame()
-    Menu.draw(gc, frame.menu.title, menuLabels(frame.menu), frame.selected, frame.menu.subtitle)
+    if activeCalculator then activeCalculator:draw(gc)
+    elseif showingHistory then historyView:draw(gc)
+    else local frame=currentFrame(); Menu.draw(gc,frame.menu.title,menuLabels(frame.menu),frame.selected,frame.menu.subtitle) end
 end
 
 function on.arrowKey(key)
-    if activeCalculator then
-        activeCalculator:moveField(key)
-    else
-        local frame = currentFrame()
-        frame.selected = Menu.move(frame.selected, #frame.menu.items, key)
-    end
+    if activeCalculator then activeCalculator:moveField(key)
+    elseif showingHistory then historyView:move(key)
+    else local frame=currentFrame(); frame.selected=Menu.move(frame.selected,#frame.menu.items,key) end
     platform.window:invalidate()
 end
 
 function on.enterKey()
-    if activeCalculator then activeCalculator:enter() else openSelectedMenuItem() end
+    if activeCalculator then activeCalculator:enter()
+    elseif showingHistory then reopenHistoryEntry(historyView:getSelected())
+    else openSelectedMenuItem() end
     platform.window:invalidate()
 end
 
-function on.charIn(character)
-    if activeCalculator then
-        activeCalculator:append(character)
-        platform.window:invalidate()
-    end
-end
-
-function on.backspaceKey()
-    if activeCalculator then
-        activeCalculator:backspace()
-        platform.window:invalidate()
-    end
-end
+function on.charIn(character) if activeCalculator then activeCalculator:append(character); platform.window:invalidate() end end
+function on.backspaceKey() if activeCalculator then activeCalculator:backspace() elseif showingHistory then historyView:clear() end; platform.window:invalidate() end
 
 function on.escapeKey()
     if activeCalculator then
-        if activeCalculator.page == "results" then
-            activeCalculator.page = "inputs"
-            activeCalculator:ensureSelectedVisible()
-        else
-            activeCalculator = nil
-        end
-    elseif #menuStack > 1 then
-        table.remove(menuStack)
-    end
+        if activeCalculator.page=="results" then activeCalculator.page="inputs"; activeCalculator:ensureSelectedVisible() else activeCalculator=nil end
+    elseif showingHistory then showingHistory=false
+    elseif #menuStack>1 then table.remove(menuStack) end
     platform.window:invalidate()
 end
