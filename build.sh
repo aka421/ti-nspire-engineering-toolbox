@@ -20,12 +20,14 @@ cat \
   "$ROOT/src/libraries/vectors.lua" \
   "$ROOT/src/libraries/coordinates.lua" \
   "$ROOT/src/libraries/linear.lua" \
+  "$ROOT/src/libraries/matrix.lua" \
   "$ROOT/src/ui/menu.lua" \
   "$ROOT/src/ui/calculator.lua" \
   "$ROOT/src/ui/history.lua" \
   "$ROOT/src/calculators/complex.lua" \
   "$ROOT/src/calculators/circuits.lua" \
   "$ROOT/src/calculators/linear_solvers.lua" \
+  "$ROOT/src/calculators/linear_algebra.lua" \
   "$ROOT/src/calculators/electromagnetics.lua" \
   "$ROOT/src/calculators/waves.lua" \
   "$ROOT/src/calculators/transmission.lua" \
@@ -33,6 +35,7 @@ cat \
   "$ROOT/src/main.lua" \
   "$ROOT/src/menu/transmission_extensions.lua" \
   "$ROOT/src/menu/equation_solver_extensions.lua" \
+  "$ROOT/src/menu/linear_algebra_extensions.lua" \
   > "$BUNDLE"
 
 "$LUNA" "$BUNDLE" "$OUTPUT"
