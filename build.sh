@@ -21,7 +21,6 @@ cat \
   "$ROOT/src/libraries/coordinates.lua" \
   "$ROOT/src/libraries/linear.lua" \
   "$ROOT/src/libraries/matrix.lua" \
-  "$ROOT/src/libraries/formula.lua" \
   "$ROOT/src/ui/menu.lua" \
   "$ROOT/src/ui/calculator.lua" \
   "$ROOT/src/ui/history.lua" \
@@ -29,7 +28,7 @@ cat \
   "$ROOT/src/calculators/circuits.lua" \
   "$ROOT/src/calculators/rlc.lua" \
   "$ROOT/src/calculators/transients.lua" \
-  "$ROOT/src/calculators/formula_solver.lua" \
+  "$ROOT/src/topics/series_rlc.lua" \
   "$ROOT/src/calculators/linear_solvers.lua" \
   "$ROOT/src/calculators/linear_algebra.lua" \
   "$ROOT/src/calculators/electromagnetics.lua" \
