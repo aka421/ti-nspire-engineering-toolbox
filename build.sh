@@ -26,6 +26,7 @@ cat \
   "$ROOT/src/ui/history.lua" \
   "$ROOT/src/calculators/complex.lua" \
   "$ROOT/src/calculators/circuits.lua" \
+  "$ROOT/src/calculators/rlc.lua" \
   "$ROOT/src/calculators/linear_solvers.lua" \
   "$ROOT/src/calculators/linear_algebra.lua" \
   "$ROOT/src/calculators/electromagnetics.lua" \
@@ -43,6 +44,7 @@ cat \
   "$ROOT/src/menu/linear_algebra_extensions.lua" \
   "$ROOT/src/menu/mechanical_extensions.lua" \
   "$ROOT/src/menu/thermodynamics_extensions.lua" \
+  "$ROOT/src/menu/rlc_extensions.lua" \
   > "$BUNDLE"
 
 "$LUNA" "$BUNDLE" "$OUTPUT"
