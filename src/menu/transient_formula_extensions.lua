@@ -2,6 +2,7 @@
 
 registerTransientCalculators(calculators)
 registerTopicSolvers(calculators)
+registerTransmissionTopic(calculators)
 
 local firstOrderMenu = {
     title="First-Order Circuits", subtitle="RC and RL step and decay responses",
@@ -33,7 +34,10 @@ table.insert(circuitMenu.items,{label="Transient Analysis",menu=transientMenu})
 local electricalTopicsMenu = {
     title="Electrical Topics",
     subtitle="Enter known values and calculate the full topic",
-    items={{label="Series RLC",calculator="topicSeriesRLC"}}
+    items={
+        {label="Series RLC",calculator="topicSeriesRLC"},
+        {label="Transmission Lines",calculator="topicTransmissionLine"}
+    }
 }
 
 local solveByTopicMenu = {
