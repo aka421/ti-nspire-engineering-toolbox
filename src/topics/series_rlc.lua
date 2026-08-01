@@ -1,24 +1,12 @@
 -- Solve-by-Topic: Series RLC workspace.
 -- Computes operating-point, power, and resonance quantities together.
 
-local function topicNumber(value)
-    if value == 0 then return "0" end
-    local magnitude = math.abs(value)
-    if magnitude >= 1e6 or magnitude < 1e-3 then
-        return string.format("%.3e", value)
-    end
-    return string.format("%.4g", value)
-end
-
-local function packedFormat(value)
-    return value
-end
-
 function registerTopicSolvers(calculators)
     calculators.topicSeriesRLC = Calculator.new({
         id = "topicSeriesRLC",
         title = "Series RLC Workspace",
         subtitle = "RMS source; computes operating point and resonance",
+        visibleResultCount = 5,
         inputs = {
             {label="Resistance R",unit="ohm"},
             {label="Inductance L",unit="H"},
@@ -27,10 +15,22 @@ function registerTopicSolvers(calculators)
             {label="Source voltage RMS",unit="V"}
         },
         outputs = {
-            {label="Reactance",format=packedFormat},
-            {label="Impedance",format=packedFormat},
-            {label="Current/power",format=packedFormat},
-            {label="Resonance",format=packedFormat}
+            {label="Inductive reactance XL",unit="ohm"},
+            {label="Capacitive reactance XC",unit="ohm"},
+            {label="Net reactance X",unit="ohm"},
+            {label="Impedance real",unit="ohm"},
+            {label="Impedance imaginary",unit="ohm"},
+            {label="Impedance magnitude",unit="ohm"},
+            {label="Impedance phase",unit="degrees"},
+            {label="Current magnitude",unit="A"},
+            {label="Current phase",unit="degrees"},
+            {label="Power factor"},
+            {label="Real power P",unit="W"},
+            {label="Reactive power Q",unit="var"},
+            {label="Apparent power S",unit="VA"},
+            {label="Resonant frequency",unit="Hz"},
+            {label="Quality factor"},
+            {label="Bandwidth",unit="Hz"}
         },
         validate = function(v)
             if v[1] <= 0 then return "Resistance must be greater than zero" end
@@ -47,7 +47,6 @@ function registerTopicSolvers(calculators)
             local x=xl-xc
             local zmag=math.sqrt(r*r+x*x)
             local angle=math.atan2(x,r)*180/math.pi
-            local imag=x
             local current=vrms/zmag
             local currentAngle=-angle
             local pf=r/zmag
@@ -57,11 +56,9 @@ function registerTopicSolvers(calculators)
             local f0=1/(2*math.pi*math.sqrt(l*c))
             local q=(2*math.pi*f0*l)/r
             local bandwidth=r/(2*math.pi*l)
-            return
-                "XL="..topicNumber(xl).." XC="..topicNumber(xc).." ohm",
-                "Z="..topicNumber(r).."+j"..topicNumber(imag).." |Z|="..topicNumber(zmag).." @"..topicNumber(angle).."deg",
-                "I="..topicNumber(current).."A @"..topicNumber(currentAngle).."deg PF="..topicNumber(pf).." P="..topicNumber(realPower).."W Q="..topicNumber(reactivePower).."var S="..topicNumber(apparentPower).."VA",
-                "f0="..topicNumber(f0).."Hz Q="..topicNumber(q).." BW="..topicNumber(bandwidth).."Hz"
+
+            return xl,xc,x,r,x,zmag,angle,current,currentAngle,pf,
+                realPower,reactivePower,apparentPower,f0,q,bandwidth
         end
     })
 end
