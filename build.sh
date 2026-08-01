@@ -23,6 +23,7 @@ cat \
   "$ROOT/src/libraries/matrix.lua" \
   "$ROOT/src/ui/menu.lua" \
   "$ROOT/src/ui/calculator.lua" \
+  "$ROOT/src/ui/result_scroll.lua" \
   "$ROOT/src/ui/history.lua" \
   "$ROOT/src/calculators/complex.lua" \
   "$ROOT/src/calculators/circuits.lua" \
