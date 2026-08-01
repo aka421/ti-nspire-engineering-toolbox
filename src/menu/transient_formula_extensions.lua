@@ -1,7 +1,7 @@
--- Register transient calculators and formula solvers, then extend menus.
+-- Register transient calculators and Solve-by-Topic workspaces, then extend menus.
 
 registerTransientCalculators(calculators)
-registerFormulaSolvers(calculators)
+registerTopicSolvers(calculators)
 
 local firstOrderMenu = {
     title="First-Order Circuits", subtitle="RC and RL step and decay responses",
@@ -30,9 +30,16 @@ local transientMenu = {
 
 table.insert(circuitMenu.items,{label="Transient Analysis",menu=transientMenu})
 
-local electricalFormulaMenu={title="Electrical Formulas",subtitle="Leave exactly one variable blank",items={{label="Ohm's Law",calculator="formulaOhm"},{label="Electrical Power",calculator="formulaPower"},{label="Wave Relation",calculator="formulaWave"}}}
-local mechanicalFormulaMenu={title="Mechanical Formulas",subtitle="Leave exactly one variable blank",items={{label="Newton's Second Law",calculator="formulaForce"},{label="Density",calculator="formulaDensity"},{label="Pressure",calculator="formulaPressure"},{label="Normal Stress",calculator="formulaStress"}}}
-local thermalFormulaMenu={title="Thermal Formulas",subtitle="Leave exactly one variable blank",items={{label="Ideal Gas Law",calculator="formulaIdealGas"},{label="Sensible Heat",calculator="formulaHeat"}}}
-local formulaSolverMenu={title="Formula Solver",subtitle="Choose an equation and leave one variable blank",items={{label="Electrical",menu=electricalFormulaMenu},{label="Mechanical",menu=mechanicalFormulaMenu},{label="Thermal",menu=thermalFormulaMenu}}}
+local electricalTopicsMenu = {
+    title="Electrical Topics",
+    subtitle="Enter known values and calculate the full topic",
+    items={{label="Series RLC",calculator="topicSeriesRLC"}}
+}
 
-table.insert(rootMenu.items,2,{label="Formula Solver",menu=formulaSolverMenu})
+local solveByTopicMenu = {
+    title="Solve by Topic",
+    subtitle="Workspaces that calculate related quantities together",
+    items={{label="Electrical",menu=electricalTopicsMenu}}
+}
+
+table.insert(rootMenu.items,2,{label="Solve by Topic",menu=solveByTopicMenu})
