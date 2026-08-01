@@ -16,6 +16,11 @@ table.insert(transmissionTransformsMenu.items, 5, {
 })
 
 table.insert(transmissionMetricsMenu.items, {
-    label = "Time-Average Power",
+    label = "Power from Forward Voltage",
     calculator = "transmissionAveragePower"
+})
+
+table.insert(transmissionMetricsMenu.items, {
+    label = "Power from Load Voltage",
+    calculator = "transmissionPowerFromLoadVoltage"
 })
