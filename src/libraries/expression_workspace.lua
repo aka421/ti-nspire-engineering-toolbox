@@ -9,7 +9,14 @@ local reservedNames = {
 }
 
 local function substituteWorkspaceVariables(text)
-    return string.gsub(text, "([%a_][%w_]*)", function(name)
+    return string.gsub(text, "()([%a_][%w_]*)", function(position, name)
+        -- A letter immediately following a number may be an SI suffix, such as
+        -- 10M or 4.7G. Leave it untouched rather than treating M or G as memory.
+        if position > 1 then
+            local previous = string.sub(text, position - 1, position - 1)
+            if string.match(previous, "[%d%.]") then return name end
+        end
+
         local lower = string.lower(name)
         if reservedNames[lower] then return name end
         local value = Workspace.get(name)
