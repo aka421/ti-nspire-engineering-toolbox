@@ -7,7 +7,7 @@ Workspace = Workspace or {
 
 local function canonical(name)
     if type(name) ~= "string" then return nil end
-    return string.lower(name)
+    return name
 end
 
 local function rememberName(name)
