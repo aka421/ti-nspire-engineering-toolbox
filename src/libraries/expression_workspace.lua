@@ -17,11 +17,16 @@ local function substituteWorkspaceVariables(text)
             if string.match(previous, "[%d%.]") then return name end
         end
 
+        -- Exact, case-sensitive workspace names take priority. This keeps
+        -- uppercase E as memory while lowercase e remains Euler's constant.
+        local value = Workspace.get(name)
+        if value ~= nil then
+            return "(" .. string.format("%.17g", value) .. ")"
+        end
+
         local lower = string.lower(name)
         if reservedNames[lower] then return name end
-        local value = Workspace.get(name)
-        if value == nil then return name end
-        return "(" .. string.format("%.17g", value) .. ")"
+        return name
     end)
 end
 
