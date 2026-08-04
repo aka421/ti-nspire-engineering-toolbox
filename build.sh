@@ -15,7 +15,9 @@ fi
 mkdir -p "$DIST"
 
 cat \
+  "$ROOT/src/libraries/workspace.lua" \
   "$ROOT/src/libraries/expression.lua" \
+  "$ROOT/src/libraries/expression_workspace.lua" \
   "$ROOT/src/libraries/complex.lua" \
   "$ROOT/src/libraries/vectors.lua" \
   "$ROOT/src/libraries/coordinates.lua" \
@@ -24,6 +26,7 @@ cat \
   "$ROOT/src/ui/menu.lua" \
   "$ROOT/src/ui/calculator.lua" \
   "$ROOT/src/ui/result_scroll.lua" \
+  "$ROOT/src/calculators/workspace_memory.lua" \
   "$ROOT/src/ui/history.lua" \
   "$ROOT/src/calculators/complex.lua" \
   "$ROOT/src/calculators/circuits.lua" \
@@ -50,6 +53,7 @@ cat \
   "$ROOT/src/menu/thermodynamics_extensions.lua" \
   "$ROOT/src/menu/rlc_extensions.lua" \
   "$ROOT/src/menu/transient_formula_extensions.lua" \
+  "$ROOT/src/menu/workspace_memory_extensions.lua" \
   > "$BUNDLE"
 
 "$LUNA" "$BUNDLE" "$OUTPUT"

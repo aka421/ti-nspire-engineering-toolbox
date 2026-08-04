@@ -1,3 +1,73 @@
+-- Global numeric workspace shared by every calculator.
+
+Workspace = Workspace or {
+    variables = {},
+    recentNames = {}
+}
+
+local function canonical(name)
+    if type(name) ~= "string" then return nil end
+    return name
+end
+
+local function rememberName(name)
+    local key = canonical(name)
+    for i = #Workspace.recentNames, 1, -1 do
+        if canonical(Workspace.recentNames[i]) == key then table.remove(Workspace.recentNames, i) end
+    end
+    table.insert(Workspace.recentNames, 1, name)
+    while #Workspace.recentNames > 20 do table.remove(Workspace.recentNames) end
+end
+
+function Workspace.set(name, value)
+    if type(name) ~= "string" or type(value) ~= "number" then return false end
+    if value ~= value or value == math.huge or value == -math.huge then return false end
+    local key = canonical(name)
+    Workspace.variables[key] = {name=name, value=value}
+    rememberName(name)
+    return true
+end
+
+function Workspace.get(name)
+    local entry = Workspace.variables[canonical(name)]
+    return entry and entry.value or nil
+end
+
+function Workspace.clear(name)
+    local key = canonical(name)
+    Workspace.variables[key] = nil
+    for i = #Workspace.recentNames, 1, -1 do
+        if canonical(Workspace.recentNames[i]) == key then table.remove(Workspace.recentNames, i) end
+    end
+end
+
+function Workspace.clearAll()
+    Workspace.variables = {}
+    Workspace.recentNames = {}
+end
+
+function Workspace.sanitizeName(label)
+    local name = string.gsub(label or "", "[^%w_]", "")
+    if name == "" or string.match(name, "^%d") then return nil end
+    return name
+end
+
+function Workspace.storeResults(outputs, results)
+    for i, value in ipairs(results or {}) do
+        if type(value) == "number" then
+            Workspace.set("Out" .. i, value)
+            local output = outputs and outputs[i]
+            local name = output and (output.variable or Workspace.sanitizeName(output.label))
+            if name then Workspace.set(name, value) end
+        end
+    end
+end
+
+-- Initialize conventional calculator memory slots.
+for code = string.byte("A"), string.byte("J") do
+    local name = string.char(code)
+    if Workspace.get(name) == nil then Workspace.set(name, 0) end
+end
 -- Mathematical expression parser for calculator inputs.
 -- Supports arithmetic, common functions, SI suffixes, and Ans.
 
@@ -233,7 +303,51 @@ function expression.evaluate(text)
 
     if not ok then return nil, value end
     return value, nil
-end-- Complex-number calculations for the Engineering Toolbox.
+end-- Extend the expression parser with global workspace variables.
+
+local baseExpressionEvaluate = expression.evaluate
+
+local reservedNames = {
+    ans=true, pi=true, e=true,
+    sqrt=true, abs=true, exp=true, ln=true, log=true,
+    sin=true, cos=true, tan=true, asin=true, acos=true, atan=true
+}
+
+local function substituteWorkspaceVariables(text)
+    return string.gsub(text, "()([%a_][%w_]*)", function(position, name)
+        -- A letter immediately following a number may be an SI suffix, such as
+        -- 10M or 4.7G. Leave it untouched rather than treating M or G as memory.
+        if position > 1 then
+            local previous = string.sub(text, position - 1, position - 1)
+            if string.match(previous, "[%d%.]") then return name end
+        end
+
+        -- Exact, case-sensitive workspace names take priority. This keeps
+        -- uppercase E as memory while lowercase e remains Euler's constant.
+        local value = Workspace.get(name)
+        if value ~= nil then
+            return "(" .. string.format("%.17g", value) .. ")"
+        end
+
+        local lower = string.lower(name)
+        if reservedNames[lower] then return name end
+        return name
+    end)
+end
+
+function expression.evaluate(text)
+    if text == nil then return nil, "empty expression" end
+    return baseExpressionEvaluate(substituteWorkspaceVariables(text))
+end
+
+function expression.setVariable(name, value)
+    return Workspace.set(name, value)
+end
+
+function expression.getVariable(name)
+    return Workspace.get(name)
+end
+-- Complex-number calculations for the Engineering Toolbox.
 -- This file is concatenated before the application code during the build.
 
 complex = {}
@@ -1110,6 +1224,70 @@ function Calculator:drawResultsPage(gc)
     gc:setFont("sansserif", "r", 8)
     gc:drawString("Up/Down: scroll   Enter: edit   Esc: back", 28, 216, "top")
 end
+<<<<<<< HEAD
+=======
+-- Workspace memory calculators and automatic result storage.
+
+local baseCalculatorCalculate = Calculator.calculate
+
+function Calculator:calculate()
+    local success = baseCalculatorCalculate(self)
+    if success then
+        local outputs = self.resultOutputs or self.outputs
+        Workspace.storeResults(outputs, self.results)
+    end
+    return success
+end
+
+local function memoryInputs()
+    local inputs = {}
+    for code = string.byte("A"), string.byte("J") do
+        local name = string.char(code)
+        table.insert(inputs, {label="Store " .. name})
+    end
+    return inputs
+end
+
+local function memoryOutputs()
+    local outputs = {}
+    for code = string.byte("A"), string.byte("J") do
+        local name = string.char(code)
+        table.insert(outputs, {label=name, variable=name})
+    end
+    return outputs
+end
+
+function registerWorkspaceMemoryCalculators(calculators)
+    calculators.workspaceMemory = Calculator.new({
+        id="workspaceMemory",
+        title="Workspace Memory A-J",
+        subtitle="Enter expressions for slots to change; blanks keep old values",
+        inputs=memoryInputs(),
+        outputs=memoryOutputs(),
+        allowOptionalInputs=true,
+        minimumInputs=1,
+        visibleInputCount=5,
+        calculate=function(v)
+            local results = {}
+            for i = 1, 10 do
+                local name = string.char(string.byte("A") + i - 1)
+                if v[i] ~= nil then Workspace.set(name, v[i]) end
+                results[i] = Workspace.get(name) or 0
+            end
+            return unpack(results)
+        end
+    })
+
+    calculators.workspaceRecall = Calculator.new({
+        id="workspaceRecall",
+        title="Recall Workspace Values",
+        subtitle="Results also auto-store as Out1, Out2, and descriptive names",
+        inputs={{label="Enter any expression using A-J or Out1"}},
+        outputs={{label="Value",variable="Recall"}},
+        calculate=function(v) return v[1] end
+    })
+end
+>>>>>>> 4374670a45e41a64d3ca75247c8c8ea64dc3a710
 -- Calculation history screen.
 
 HistoryView = {}
@@ -3855,3 +4033,20 @@ local solveByTopicMenu = {
 }
 
 table.insert(rootMenu.items,2,{label="Solve by Topic",menu=solveByTopicMenu})
+<<<<<<< HEAD
+=======
+-- Register workspace memory and add it near the top of the main menu.
+
+registerWorkspaceMemoryCalculators(calculators)
+
+local workspaceMemoryMenu = {
+    title="Workspace Memory",
+    subtitle="Reuse stored values in any calculator expression",
+    items={
+        {label="Store / View A-J",calculator="workspaceMemory"},
+        {label="Evaluate Stored Expression",calculator="workspaceRecall"}
+    }
+}
+
+table.insert(rootMenu.items, 2, {label="Workspace Memory",menu=workspaceMemoryMenu})
+>>>>>>> 4374670a45e41a64d3ca75247c8c8ea64dc3a710
