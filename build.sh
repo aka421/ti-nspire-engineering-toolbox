@@ -19,6 +19,7 @@ cat \
   "$ROOT/src/libraries/expression.lua" \
   "$ROOT/src/libraries/expression_workspace.lua" \
   "$ROOT/src/libraries/complex.lua" \
+  "$ROOT/src/libraries/phasor.lua" \
   "$ROOT/src/libraries/vectors.lua" \
   "$ROOT/src/libraries/coordinates.lua" \
   "$ROOT/src/libraries/linear.lua" \
@@ -29,6 +30,7 @@ cat \
   "$ROOT/src/calculators/workspace_memory.lua" \
   "$ROOT/src/ui/history.lua" \
   "$ROOT/src/calculators/complex.lua" \
+  "$ROOT/src/calculators/complex_polar.lua" \
   "$ROOT/src/calculators/circuits.lua" \
   "$ROOT/src/calculators/rlc.lua" \
   "$ROOT/src/calculators/transients.lua" \
@@ -46,6 +48,7 @@ cat \
   "$ROOT/src/calculators/vibrations.lua" \
   "$ROOT/src/calculators/thermodynamics.lua" \
   "$ROOT/src/main.lua" \
+  "$ROOT/src/menu/complex_polar_extensions.lua" \
   "$ROOT/src/menu/transmission_extensions.lua" \
   "$ROOT/src/menu/equation_solver_extensions.lua" \
   "$ROOT/src/menu/linear_algebra_extensions.lua" \
