@@ -1,22 +1,12 @@
--- Solve-by-Topic: two-wire transmission-line design workspace.
--- Homogeneous nonmagnetic dielectric, round conductors, skin-effect conductor loss.
+-- Flexible Solve-by-Topic: two-wire transmission line.
+-- Enter any known values; the dependency engine derives everything it can.
 
-local TWO_WIRE_MU0 = 4 * math.pi * 1e-7
-local TWO_WIRE_EPS0 = 8.854187817e-12
-local TWO_WIRE_C0 = 299792458
+local TW_MU0 = 4 * math.pi * 1e-7
+local TW_EPS0 = 8.854187817e-12
+local TW_C0 = 299792458
 
 local function twAcosh(x)
     return math.log(x + math.sqrt(x * x - 1))
-end
-
-local function twCMul(ar, ai, br, bi)
-    return ar * br - ai * bi, ar * bi + ai * br
-end
-
-local function twCDiv(ar, ai, br, bi)
-    local d = br * br + bi * bi
-    if d == 0 then error("complex division by zero") end
-    return (ar * br + ai * bi) / d, (ai * br - ar * bi) / d
 end
 
 local function twCMag(r, i)
@@ -27,6 +17,16 @@ local function twCAngle(r, i)
     return math.atan2(i, r) * 180 / math.pi
 end
 
+local function twCDiv(ar, ai, br, bi)
+    local d = br * br + bi * bi
+    if d == 0 then error("complex division by zero") end
+    return (ar * br + ai * bi) / d, (ai * br - ar * bi) / d
+end
+
+local function twCMul(ar, ai, br, bi)
+    return ar * br - ai * bi, ar * bi + ai * br
+end
+
 local function twCSqrt(r, i)
     local m = twCMag(r, i)
     local real = math.sqrt(math.max(0, (m + r) / 2))
@@ -35,131 +35,134 @@ local function twCSqrt(r, i)
     return real, imag
 end
 
-local function twoWireBaseOutputs()
-    return {
-        {label="Skin depth",unit="m",variable="SkinDepth"},
-        {label="R'",unit="ohm/m",variable="Rprime"},
-        {label="L'",unit="H/m",variable="Lprime"},
-        {label="G'",unit="S/m",variable="Gprime"},
-        {label="C'",unit="F/m",variable="Cprime"},
-        {label="Z0 real",unit="ohm",variable="Z0real"},
-        {label="Z0 imaginary",unit="ohm",variable="Z0imag"},
-        {label="|Z0|",unit="ohm",variable="Z0mag"},
-        {label="Z0 angle",unit="degrees",variable="Z0angle"},
-        {label="Attenuation alpha",unit="Np/m",variable="Alpha"},
-        {label="Phase beta",unit="rad/m",variable="Beta"},
-        {label="Phase velocity",unit="m/s",variable="PhaseVelocity"},
-        {label="Phase velocity / c",variable="VelocityRatio"},
-        {label="Wavelength",unit="m",variable="Wavelength"},
-        {label="Lossless Z0 estimate",unit="ohm",variable="LosslessZ0"},
-        {label="Lossless up / c",variable="LosslessVelocityRatio"}
-    }
+local quantities = {
+    {key="sigma",label="Conductivity sigma",unit="S/m"},
+    {key="d",label="Wire diameter d",unit="m"},
+    {key="D",label="Center spacing D",unit="m"},
+    {key="er",label="Relative permittivity er"},
+    {key="f",label="Frequency f",unit="Hz"},
+    {key="R",label="R'",unit="ohm/m",variable="Rprime"},
+    {key="L",label="L'",unit="H/m",variable="Lprime"},
+    {key="G",label="G'",unit="S/m",variable="Gprime"},
+    {key="C",label="C'",unit="F/m",variable="Cprime"},
+    {key="Z0",label="|Z0|",unit="ohm",variable="Z0mag"},
+    {key="beta",label="Phase beta",unit="rad/m",variable="Beta"},
+    {key="up",label="Phase velocity",unit="m/s",variable="PhaseVelocity"},
+    {key="upratio",label="Phase velocity / c",variable="VelocityRatio"},
+    {key="lambda",label="Wavelength",unit="m",variable="Wavelength"},
+    {key="alpha",label="Attenuation alpha",unit="Np/m",variable="Alpha"},
+    {key="delta",label="Skin depth",unit="m",variable="SkinDepth"},
+    {key="Z0real",label="Z0 real",unit="ohm",variable="Z0real"},
+    {key="Z0imag",label="Z0 imaginary",unit="ohm",variable="Z0imag"},
+    {key="Z0angle",label="Z0 angle",unit="degrees",variable="Z0angle"}
+}
+
+local inputQuantities = {
+    quantities[1],quantities[2],quantities[3],quantities[4],quantities[5],
+    quantities[6],quantities[7],quantities[8],quantities[9],quantities[10],
+    quantities[11],quantities[12],quantities[13],quantities[14],quantities[15],quantities[16]
+}
+
+local function makeInputs()
+    local inputs = {}
+    for i, q in ipairs(inputQuantities) do inputs[i] = {label=q.label,unit=q.unit} end
+    return inputs
 end
 
-local function twoWireMeasuredOutputs(outputs)
-    table.insert(outputs,{label="Measured Z0 difference",unit="%",variable="MeasuredZ0Difference"})
-    table.insert(outputs,{label="Measured up difference",unit="%",variable="MeasuredVelocityDifference"})
-    table.insert(outputs,{label="Effective epsilon_r",variable="EffectiveEpsilonR"})
-    table.insert(outputs,{label="L' inferred from measured",unit="H/m",variable="MeasuredLprime"})
-    table.insert(outputs,{label="C' inferred from measured",unit="F/m",variable="MeasuredCprime"})
-    return outputs
+local function makeOutputDefinition(q, source)
+    local suffix = source == "entered" and " [entered]" or " [calc]"
+    return {label=q.label .. suffix,unit=q.unit,variable=q.variable or q.key}
 end
+
+local lastOutputs = {}
+local lastResults = {}
+
+local relations = {
+    {needs={"f"},gives="omega",label="omega = 2*pi*f",solve=function(v) return 2*math.pi*v.f end},
+    {needs={"omega"},gives="f",label="f = omega/(2*pi)",solve=function(v) return v.omega/(2*math.pi) end},
+    {needs={"upratio"},gives="up",label="up = (up/c)c",solve=function(v) return v.upratio*TW_C0 end},
+    {needs={"up"},gives="upratio",label="up/c",solve=function(v) return v.up/TW_C0 end},
+    {needs={"upratio"},gives="er",label="er = 1/(up/c)^2",solve=function(v) if v.upratio<=0 then error() end return 1/(v.upratio*v.upratio) end},
+    {needs={"er"},gives="upratio",label="up/c = 1/sqrt(er)",solve=function(v) if v.er<=0 then error() end return 1/math.sqrt(v.er) end},
+    {needs={"f","up"},gives="lambda",label="lambda = up/f",solve=function(v) return v.up/v.f end},
+    {needs={"lambda","f"},gives="up",label="up = lambda*f",solve=function(v) return v.lambda*v.f end},
+    {needs={"omega","up"},gives="beta",label="beta = omega/up",solve=function(v) return v.omega/v.up end},
+    {needs={"omega","beta"},gives="up",label="up = omega/beta",solve=function(v) return v.omega/v.beta end},
+    {needs={"beta"},gives="lambda",label="lambda = 2*pi/beta",solve=function(v) return 2*math.pi/v.beta end},
+    {needs={"lambda"},gives="beta",label="beta = 2*pi/lambda",solve=function(v) return 2*math.pi/v.lambda end},
+
+    {needs={"D","d"},gives="geom",label="two-wire geometry",solve=function(v) if v.d<=0 or v.D<=v.d then error() end return twAcosh(v.D/v.d) end},
+    {needs={"geom"},gives="L",label="two-wire L'",solve=function(v) return (TW_MU0/math.pi)*v.geom end},
+    {needs={"geom","er"},gives="C",label="two-wire C'",solve=function(v) if v.er<=0 then error() end return (math.pi*TW_EPS0*v.er)/v.geom end},
+    {needs={},gives="G",label="lossless dielectric",solve=function() return 0 end},
+
+    {needs={"f","sigma"},gives="delta",label="skin depth",solve=function(v) if v.f<=0 or v.sigma<=0 then error() end return math.sqrt(2/(2*math.pi*v.f*TW_MU0*v.sigma)) end},
+    {needs={"sigma","delta","d"},gives="R",label="skin-effect R'",solve=function(v) if v.sigma<=0 or v.delta<=0 or v.d<=0 then error() end local rs=1/(v.sigma*v.delta); return 2*rs/(math.pi*v.d) end},
+
+    {needs={"L","C"},gives="up",label="up = 1/sqrt(LC)",solve=function(v) if v.L<=0 or v.C<=0 then error() end return 1/math.sqrt(v.L*v.C) end},
+    {needs={"L","C"},gives="Z0",label="Z0 = sqrt(L/C)",solve=function(v) if v.L<=0 or v.C<=0 then error() end return math.sqrt(v.L/v.C) end},
+    {needs={"Z0","up"},gives="L",label="L' = Z0/up",solve=function(v) if v.Z0<=0 or v.up<=0 then error() end return v.Z0/v.up end},
+    {needs={"Z0","up"},gives="C",label="C' = 1/(Z0*up)",solve=function(v) if v.Z0<=0 or v.up<=0 then error() end return 1/(v.Z0*v.up) end},
+    {needs={"L","Z0"},gives="C",label="C' = L'/Z0^2",solve=function(v) return v.L/(v.Z0*v.Z0) end},
+    {needs={"C","Z0"},gives="L",label="L' = C'Z0^2",solve=function(v) return v.C*v.Z0*v.Z0 end},
+
+    {needs={"R","Z0"},gives="alpha",label="low-loss alpha",solve=function(v) if v.Z0<=0 then error() end return v.R/(2*v.Z0) end},
+
+    {needs={"R","L","G","C","f"},gives={"Z0real","Z0imag","Z0","Z0angle","alpha","beta","up","upratio","lambda"},label="exact distributed line",solve=function(v)
+        if v.f<=0 or v.C<=0 then error() end
+        local w=2*math.pi*v.f
+        local rr,ri=twCDiv(v.R,w*v.L,v.G,w*v.C)
+        local zr,zi=twCSqrt(rr,ri)
+        if zr<0 then zr,zi=-zr,-zi end
+        local pr,pi=twCMul(v.R,w*v.L,v.G,w*v.C)
+        local a,b=twCSqrt(pr,pi)
+        if a<0 then a=-a end
+        if b<0 then b=-b end
+        local up=w/b
+        return {
+            Z0real=zr,Z0imag=zi,Z0=twCMag(zr,zi),Z0angle=twCAngle(zr,zi),
+            alpha=a,beta=b,up=up,upratio=up/TW_C0,lambda=2*math.pi/b
+        }
+    end}
+}
 
 function registerTwoWireLineTopic(calculators)
     calculators.topicTwoWireLine = Calculator.new({
         id="topicTwoWireLine",
-        title="Two-Wire Line Design",
-        subtitle="Round conductors; homogeneous dielectric; optional measured data",
-        inputs={
-            {label="Conductivity sigma",unit="S/m"},
-            {label="Wire diameter d",unit="m"},
-            {label="Center spacing D",unit="m"},
-            {label="Relative permittivity er"},
-            {label="Frequency f",unit="Hz"},
-            {label="Measured Z0 (optional)",unit="ohm"},
-            {label="Measured up/c (optional)"}
-        },
-        outputs=twoWireBaseOutputs(),
+        title="Two-Wire Line Flexible Solver",
+        subtitle="Enter any known values; leave everything else blank",
+        inputs=makeInputs(),
+        outputs={{label="Result"}},
         allowOptionalInputs=true,
-        minimumInputs=5,
+        minimumInputs=1,
         visibleInputCount=5,
-        resolveOutputs=function(v)
-            local outputs=twoWireBaseOutputs()
-            if v[6] ~= nil and v[7] ~= nil then twoWireMeasuredOutputs(outputs) end
-            return outputs
-        end,
+        resolveOutputs=function() return lastOutputs end,
         validate=function(v)
-            if v[1] == nil or v[2] == nil or v[3] == nil or v[4] == nil or v[5] == nil then
-                return "Complete sigma, d, D, er, and frequency"
-            end
-            if v[1] <= 0 then return "Conductivity must be greater than zero" end
-            if v[2] <= 0 then return "Wire diameter must be greater than zero" end
-            if v[3] <= v[2] then return "Center spacing D must be greater than diameter d" end
-            if v[4] <= 0 then return "Relative permittivity must be greater than zero" end
-            if v[5] <= 0 then return "Frequency must be greater than zero" end
-            if (v[6] == nil) ~= (v[7] == nil) then return "Enter both measured values or leave both blank" end
-            if v[6] ~= nil and v[6] <= 0 then return "Measured Z0 must be greater than zero" end
-            if v[7] ~= nil and (v[7] <= 0 or v[7] > 1) then return "Measured up/c must be from 0 to 1" end
+            if v[2]~=nil and v[2]<=0 then return "Diameter must be greater than zero" end
+            if v[3]~=nil and v[2]~=nil and v[3]<=v[2] then return "Center spacing must exceed diameter" end
+            if v[4]~=nil and v[4]<=0 then return "Relative permittivity must be positive" end
+            if v[5]~=nil and v[5]<=0 then return "Frequency must be positive" end
+            if v[10]~=nil and v[10]<=0 then return "Z0 must be positive" end
+            if v[13]~=nil and v[13]<=0 then return "up/c must be positive" end
         end,
         calculate=function(v)
-            local sigma,d,D,er,f=v[1],v[2],v[3],v[4],v[5]
-            local omega=2*math.pi*f
-            local mu=TWO_WIRE_MU0
-            local eps=TWO_WIRE_EPS0*er
-            local geom=twAcosh(D/d)
+            local initial = {}
+            for i,q in ipairs(inputQuantities) do if v[i]~=nil then initial[q.key]=v[i] end end
 
-            -- Skin-effect resistance for the complete two-conductor loop.
-            local skinDepth=math.sqrt(2/(omega*mu*sigma))
-            local surfaceResistance=1/(sigma*skinDepth)
-            local rPrime=2*surfaceResistance/(math.pi*d)
+            local solved,sources=TopicDependency.solve(initial,relations)
+            lastOutputs={}
+            lastResults={}
 
-            -- High-frequency external inductance and electrostatic capacitance.
-            local lPrime=(mu/math.pi)*geom
-            local gPrime=0
-            local cPrime=(math.pi*eps)/geom
-
-            -- Exact distributed-parameter characteristic impedance and propagation constant.
-            local zNumeratorR,zNumeratorI=rPrime,omega*lPrime
-            local zDenominatorR,zDenominatorI=gPrime,omega*cPrime
-            local ratioR,ratioI=twCDiv(zNumeratorR,zNumeratorI,zDenominatorR,zDenominatorI)
-            local z0r,z0i=twCSqrt(ratioR,ratioI)
-            if z0r < 0 then z0r,z0i=-z0r,-z0i end
-
-            local productR,productI=twCMul(zNumeratorR,zNumeratorI,zDenominatorR,zDenominatorI)
-            local alpha,beta=twCSqrt(productR,productI)
-            if alpha < 0 then alpha=-alpha end
-            if beta < 0 then beta=-beta end
-
-            local phaseVelocity=omega/beta
-            local velocityRatio=phaseVelocity/TWO_WIRE_C0
-            local wavelength=2*math.pi/beta
-            local losslessZ0=math.sqrt(lPrime/cPrime)
-            local losslessVelocityRatio=1/math.sqrt(er)
-
-            local results={
-                skinDepth,rPrime,lPrime,gPrime,cPrime,
-                z0r,z0i,twCMag(z0r,z0i),twCAngle(z0r,z0i),
-                alpha,beta,phaseVelocity,velocityRatio,wavelength,
-                losslessZ0,losslessVelocityRatio
-            }
-
-            if v[6] ~= nil and v[7] ~= nil then
-                local measuredZ0=v[6]
-                local measuredRatio=v[7]
-                local measuredVelocity=measuredRatio*TWO_WIRE_C0
-                local z0Difference=100*(measuredZ0-twCMag(z0r,z0i))/twCMag(z0r,z0i)
-                local velocityDifference=100*(measuredRatio-velocityRatio)/velocityRatio
-                local effectiveEr=1/(measuredRatio*measuredRatio)
-                local measuredL=measuredZ0/measuredVelocity
-                local measuredC=1/(measuredZ0*measuredVelocity)
-                table.insert(results,z0Difference)
-                table.insert(results,velocityDifference)
-                table.insert(results,effectiveEr)
-                table.insert(results,measuredL)
-                table.insert(results,measuredC)
+            for _,q in ipairs(quantities) do
+                local value=solved[q.key]
+                if type(value)=="number" then
+                    table.insert(lastOutputs,makeOutputDefinition(q,sources[q.key]))
+                    table.insert(lastResults,value)
+                end
             end
 
-            return unpack(results)
+            if #lastResults==0 then error("No quantities could be determined") end
+            return unpack(lastResults)
         end
     })
 end
