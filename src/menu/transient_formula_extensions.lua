@@ -1,9 +1,6 @@
--- Register transient calculators and Solve-by-Topic workspaces, then extend menus.
+-- Register transient calculators and add Transient Analysis to Circuit Analysis.
 
 registerTransientCalculators(calculators)
-registerTopicSolvers(calculators)
-registerTransmissionTopic(calculators)
-registerTwoWireLineTopic(calculators)
 
 local firstOrderMenu = {
     title="First-Order Circuits", subtitle="RC and RL step and decay responses",
@@ -27,25 +24,10 @@ local secondOrderMenu = {
 
 local transientMenu = {
     title="Transient Analysis", subtitle="First- and second-order circuit response",
-    items={{label="First-Order Circuits",menu=firstOrderMenu},{label="Second-Order Circuits",menu=secondOrderMenu}}
-}
-
-table.insert(circuitMenu.items,{label="Transient Analysis",menu=transientMenu})
-
-local electricalTopicsMenu = {
-    title="Electrical Topics",
-    subtitle="Enter known values and calculate the full topic",
     items={
-        {label="Series RLC",calculator="topicSeriesRLC"},
-        {label="Transmission Lines",calculator="topicTransmissionLine"},
-        {label="Two-Wire Line Design",calculator="topicTwoWireLine"}
+        {label="First-Order Circuits",menu=firstOrderMenu},
+        {label="Second-Order Circuits",menu=secondOrderMenu}
     }
 }
 
-local solveByTopicMenu = {
-    title="Solve by Topic",
-    subtitle="Workspaces that calculate related quantities together",
-    items={{label="Electrical",menu=electricalTopicsMenu}}
-}
-
-table.insert(rootMenu.items,2,{label="Solve by Topic",menu=solveByTopicMenu})
+table.insert(circuitMenu.items,{label="Transient Analysis",menu=transientMenu})
