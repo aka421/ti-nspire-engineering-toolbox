@@ -8,6 +8,7 @@ registerWorkspaceMemoryCalculators(calculators)
 registerTopicSolvers(calculators)
 registerTransmissionTopic(calculators)
 registerTwoWireLineTopic(calculators)
+registerRailLauncherTopics(calculators)
 
 local memoryMenu = {
     title="Workspace Memory",
@@ -24,7 +25,9 @@ local electricalMenu = {
     items={
         {label="Series RLC",calculator="topicSeriesRLC"},
         {label="Transmission Lines",calculator="topicTransmissionLine"},
-        {label="Two-Wire Line Design",calculator="topicTwoWireLine"}
+        {label="Two-Wire Line Design",calculator="topicTwoWireLine"},
+        {label="Rail Launcher - External B",calculator="topicRailExternal"},
+        {label="Rail Launcher - Self Field",calculator="topicRailSelf"}
     }
 }
 
