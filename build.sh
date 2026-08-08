@@ -4,8 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 LUNA="$ROOT/tools/Luna/luna"
 DIST="$ROOT/dist"
-BUNDLE="$DIST/engineering_toolbox.lua"
-OUTPUT="$DIST/engineering_toolbox.tns"
+TOOLBOX_BUNDLE="$DIST/engineering_toolbox.lua"
+TOOLBOX_OUTPUT="$DIST/engineering_toolbox.tns"
+WORKSPACE_BUNDLE="$DIST/engineering_workspaces.lua"
+WORKSPACE_OUTPUT="$DIST/engineering_workspaces.tns"
 
 if [[ ! -x "$LUNA" ]]; then
   echo "Luna is not built yet. Run ./setup-luna.sh first." >&2
@@ -14,6 +16,9 @@ fi
 
 mkdir -p "$DIST"
 
+# Main Engineering Toolbox: individual calculators and references.
+# Solve-by-Topic files intentionally live in the separate Workspaces document
+# to avoid Luna's 200-local-variable limit for a single compiled Lua chunk.
 cat \
   "$ROOT/src/libraries/workspace.lua" \
   "$ROOT/src/libraries/expression.lua" \
@@ -24,7 +29,6 @@ cat \
   "$ROOT/src/libraries/coordinates.lua" \
   "$ROOT/src/libraries/linear.lua" \
   "$ROOT/src/libraries/matrix.lua" \
-  "$ROOT/src/libraries/topic_dependency.lua" \
   "$ROOT/src/ui/menu.lua" \
   "$ROOT/src/ui/calculator.lua" \
   "$ROOT/src/ui/result_scroll.lua" \
@@ -35,9 +39,6 @@ cat \
   "$ROOT/src/calculators/circuits.lua" \
   "$ROOT/src/calculators/rlc.lua" \
   "$ROOT/src/calculators/transients.lua" \
-  "$ROOT/src/topics/series_rlc.lua" \
-  "$ROOT/src/topics/transmission_lines.lua" \
-  "$ROOT/src/topics/two_wire_line.lua" \
   "$ROOT/src/calculators/linear_solvers.lua" \
   "$ROOT/src/calculators/linear_algebra.lua" \
   "$ROOT/src/calculators/electromagnetics.lua" \
@@ -59,7 +60,28 @@ cat \
   "$ROOT/src/menu/rlc_extensions.lua" \
   "$ROOT/src/menu/transient_formula_extensions.lua" \
   "$ROOT/src/menu/workspace_memory_extensions.lua" \
-  > "$BUNDLE"
+  > "$TOOLBOX_BUNDLE"
 
-"$LUNA" "$BUNDLE" "$OUTPUT"
+# Engineering Workspaces: Solve-by-Topic dependency solvers.
+# It has its own A-J/Out memory because TI-Nspire documents do not share Lua state.
+cat \
+  "$ROOT/src/libraries/workspace.lua" \
+  "$ROOT/src/libraries/expression.lua" \
+  "$ROOT/src/libraries/expression_workspace.lua" \
+  "$ROOT/src/libraries/complex.lua" \
+  "$ROOT/src/libraries/topic_dependency.lua" \
+  "$ROOT/src/ui/menu.lua" \
+  "$ROOT/src/ui/calculator.lua" \
+  "$ROOT/src/ui/result_scroll.lua" \
+  "$ROOT/src/calculators/workspace_memory.lua" \
+  "$ROOT/src/topics/series_rlc.lua" \
+  "$ROOT/src/topics/transmission_lines.lua" \
+  "$ROOT/src/topics/two_wire_line.lua" \
+  "$ROOT/src/workspace_main.lua" \
+  > "$WORKSPACE_BUNDLE"
+
+"$LUNA" "$TOOLBOX_BUNDLE" "$TOOLBOX_OUTPUT"
+"$LUNA" "$WORKSPACE_BUNDLE" "$WORKSPACE_OUTPUT"
+
 echo "Built: dist/engineering_toolbox.tns"
+echo "Built: dist/engineering_workspaces.tns"
