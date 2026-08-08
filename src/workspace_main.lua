@@ -10,6 +10,7 @@ registerTransmissionTopic(calculators)
 registerTwoWireLineTopic(calculators)
 registerRailLauncherTopics(calculators)
 registerECE216Worksheet34Topics(calculators)
+registerECE216FormulaCoreTopics(calculators)
 
 local memoryMenu = {
     title="Workspace Memory",
@@ -28,9 +29,15 @@ local electricalMenu = {
         {label="Transmission Lines",calculator="topicTransmissionLine"},
         {label="Two-Wire Line Design",calculator="topicTwoWireLine"},
         {label="Coaxial Line Design",calculator="topicCoaxLine"},
+        {label="Parallel-Plate Line Design",calculator="topicParallelPlateLine"},
         {label="Quarter-Wave Transformer",calculator="topicQuarterWave"},
+        {label="Open / Short Stub",calculator="topicStub"},
         {label="Current in Dielectrics",calculator="topicDielectricCurrent"},
+        {label="Charge Relaxation",calculator="topicChargeRelax"},
         {label="Faraday / Wave EMF",calculator="topicFaradayWave"},
+        {label="Ideal Transformer Ratios",calculator="topicIdealTransformer"},
+        {label="Poynting Vector",calculator="topicPoynting"},
+        {label="Magnetostatics Basics",calculator="topicMagnetostatics"},
         {label="Rail Launcher - External B",calculator="topicRailExternal"},
         {label="Rail Launcher - Self Field",calculator="topicRailSelf"}
     }
