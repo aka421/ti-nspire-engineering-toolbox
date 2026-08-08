@@ -24,6 +24,7 @@ cat \
   "$ROOT/src/libraries/coordinates.lua" \
   "$ROOT/src/libraries/linear.lua" \
   "$ROOT/src/libraries/matrix.lua" \
+  "$ROOT/src/libraries/topic_dependency.lua" \
   "$ROOT/src/ui/menu.lua" \
   "$ROOT/src/ui/calculator.lua" \
   "$ROOT/src/ui/result_scroll.lua" \
