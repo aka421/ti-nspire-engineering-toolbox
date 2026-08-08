@@ -74,6 +74,7 @@ cat \
   "$ROOT/src/topics/two_wire_line.lua" \
   "$ROOT/src/topics/rail_launcher.lua" \
   "$ROOT/src/topics/ece216_ws34.lua" \
+  "$ROOT/src/topics/ece216_formula_core.lua" \
   "$ROOT/src/workspace_main.lua" \
   > "$WORKSPACE_BUNDLE"
 
