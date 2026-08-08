@@ -77,6 +77,7 @@ cat \
   "$ROOT/src/topics/series_rlc.lua" \
   "$ROOT/src/topics/transmission_lines.lua" \
   "$ROOT/src/topics/two_wire_line.lua" \
+  "$ROOT/src/topics/rail_launcher.lua" \
   "$ROOT/src/workspace_main.lua" \
   > "$WORKSPACE_BUNDLE"
 
