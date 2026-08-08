@@ -36,6 +36,7 @@ cat \
   "$ROOT/src/calculators/transients.lua" \
   "$ROOT/src/topics/series_rlc.lua" \
   "$ROOT/src/topics/transmission_lines.lua" \
+  "$ROOT/src/topics/two_wire_line.lua" \
   "$ROOT/src/calculators/linear_solvers.lua" \
   "$ROOT/src/calculators/linear_algebra.lua" \
   "$ROOT/src/calculators/electromagnetics.lua" \
