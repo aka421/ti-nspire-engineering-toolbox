@@ -1,548 +1,107 @@
 -- TI-Nspire Engineering Toolbox
--- Main menu and Rectangular-to-Polar calculator
+-- Application menu tree and navigation.
 
 platform.apiLevel = "2.0"
 
-local complex = {}
+local calculators = {}
+registerComplexCalculators(calculators)
+registerCircuitCalculators(calculators)
+registerElectromagneticsCalculators(calculators)
+registerWaveCalculators(calculators)
+registerTransmissionCalculators(calculators)
+registerCoordinateCalculators(calculators)
 
-function complex.magnitude(re, im)
-    return math.sqrt(re * re + im * im)
+local complexArithmeticMenu={title="Complex Arithmetic",subtitle="Choose an operation",items={{label="Add",calculator="complexAdd"},{label="Subtract",calculator="complexSubtract"},{label="Multiply",calculator="complexMultiply"},{label="Divide",calculator="complexDivide"}}}
+local complexMenu={title="Complex Numbers",subtitle="Enter to select, Esc to return",items={{label="Rectangular to Polar",calculator="rectToPolar"},{label="Polar to Rectangular",calculator="polarToRect"},{label="Magnitude and Phase",calculator="magnitudePhase"},{label="Complex Arithmetic",menu=complexArithmeticMenu}}}
+
+local basicCircuitsMenu={title="Basic Circuits",subtitle="Enter to select, Esc to return",items={{label="Ohm's Law",calculator="ohmsLaw"},{label="Electrical Power",calculator="electricalPower"},{label="Voltage Divider",calculator="voltageDivider"},{label="Current Divider",calculator="currentDivider"}}}
+local resistorNetworksMenu={title="Resistor Networks",subtitle="Equivalent resistance and conversions",items={{label="Series Resistance",calculator="seriesResistance"},{label="Parallel Resistance",calculator="parallelResistance"},{label="Delta to Wye",calculator="deltaToWye"},{label="Wye to Delta",calculator="wyeToDelta"}}}
+local sourceTransformationMenu={title="Source Transformation",subtitle="Choose the source conversion direction",items={{label="Voltage to Current",calculator="voltageToCurrentSource"},{label="Current to Voltage",calculator="currentToVoltageSource"}}}
+local equivalentConversionMenu={title="Thevenin and Norton",subtitle="Choose the equivalent conversion direction",items={{label="Thevenin to Norton",calculator="theveninToNorton"},{label="Norton to Thevenin",calculator="nortonToThevenin"}}}
+local networkTheoremsMenu={title="Network Theorems",subtitle="Source and equivalent-circuit conversions",items={{label="Thevenin / Norton",menu=equivalentConversionMenu},{label="Source Transformation",menu=sourceTransformationMenu}}}
+local equationSolversMenu={title="Equation Solvers",subtitle="Solve circuit equation systems",items={{label="Two-Mesh Solver",calculator="meshTwo"},{label="Three-Mesh Solver"}}}
+local circuitMenu={title="Circuit Analysis",subtitle="Choose a category",items={{label="Basic Circuits",menu=basicCircuitsMenu},{label="Resistor Networks",menu=resistorNetworksMenu},{label="Network Theorems",menu=networkTheoremsMenu},{label="Equation Solvers",menu=equationSolversMenu}}}
+
+local vectorOperationsMenu={title="Vector Operations",subtitle="Three-dimensional Cartesian vectors",items={{label="Magnitude",calculator="vectorMagnitude"},{label="Unit Vector",calculator="vectorUnit"},{label="Dot Product",calculator="vectorDot"},{label="Cross Product",calculator="vectorCross"},{label="Angle Between",calculator="vectorAngle"},{label="Projection A onto B",calculator="vectorProjection"}}}
+local coordinateSystemsMenu={title="Coordinate Systems",subtitle="Points and vector components",items={{label="Cartesian to Cylindrical",calculator="cartesianToCylindrical"},{label="Cylindrical to Cartesian",calculator="cylindricalToCartesian"},{label="Cartesian to Spherical",calculator="cartesianToSpherical"},{label="Spherical to Cartesian",calculator="sphericalToCartesian"},{label="Cyl Vector to Cartesian",calculator="cylindricalVectorToCartesian"},{label="Sph Vector to Cartesian",calculator="sphericalVectorToCartesian"}}}
+local generalMathMenu={title="General Math",subtitle="Reusable mathematical tools",items={{label="Vector Operations",menu=vectorOperationsMenu},{label="Coordinate Systems",menu=coordinateSystemsMenu}}}
+
+local electrostaticsMenu={title="Electrostatics",subtitle="Charges, fields, flux, and capacitance",items={{label="Coulomb's Law",calculator="coulombsLaw"},{label="Point-Charge Electric Field",calculator="pointChargeField"},{label="Electric Potential",calculator="pointChargePotential"},{label="Force on a Charge",calculator="forceOnCharge"},{label="Gauss's Law",calculator="gaussLaw"},{label="Parallel-Plate Capacitance",calculator="parallelPlateCapacitance"}}}
+
+local magneticFieldsMenu={title="Magnetic Fields",subtitle="Fields from common current distributions",items={{label="Infinite Straight Wire",calculator="infiniteWireField"},{label="Finite Straight Wire",calculator="finiteWireField"},{label="Circular Loop",calculator="circularLoopField"},{label="Ideal Solenoid",calculator="solenoidField"},{label="Ideal Toroid",calculator="toroidField"}}}
+local magneticForcesMenu={title="Magnetic Forces",subtitle="Lorentz force, wire force, and torque",items={{label="Force on Moving Charge",calculator="movingChargeMagneticForce"},{label="Force on Current-Carrying Wire",calculator="currentWireForce"},{label="Force Between Parallel Wires",calculator="parallelWireForce"},{label="Torque on Current Loop",calculator="currentLoopTorque"}}}
+local magneticFluxMenu={title="Flux and Induction",subtitle="Magnetic flux and Faraday's law",items={{label="Magnetic Flux",calculator="magneticFlux"},{label="Faraday's Law",calculator="faradayLaw"}}}
+local inductanceMenu={title="Inductance",subtitle="Self, mutual, and stored energy",items={{label="Ideal Solenoid Inductance",calculator="solenoidInductance"},{label="Mutual Inductance",calculator="mutualInductance"},{label="Energy Stored",calculator="inductorEnergy"}}}
+local magnetostaticsMenu={title="Magnetostatics",subtitle="Fields, forces, flux, and inductance",items={{label="Magnetic Fields",menu=magneticFieldsMenu},{label="Magnetic Forces",menu=magneticForcesMenu},{label="Flux and Induction",menu=magneticFluxMenu},{label="Inductance",menu=inductanceMenu}}}
+
+local wavesMenu={title="Electromagnetic Waves",subtitle="Wave properties and lossy media",items={{label="Wave Speed",calculator="waveSpeed"},{label="Intrinsic Impedance",calculator="intrinsicImpedance"},{label="Wavelength",calculator="waveWavelength"},{label="Propagation Constant",calculator="lossyPropagation"},{label="Skin Depth",calculator="skinDepth"},{label="Plane-Wave Power Density",calculator="powerDensity"}}}
+
+local transmissionMetricsMenu={title="Reflection and Matching",subtitle="Reflection, standing waves, and losses",items={{label="Reflection Coefficient",calculator="reflectionCoefficient"},{label="Load from Reflection",calculator="loadFromReflection"},{label="VSWR",calculator="vswr"},{label="Return and Mismatch Loss",calculator="returnLoss"}}}
+local transmissionTransformsMenu={title="Line Transformations",subtitle="Impedance and electrical length",items={{label="Input Impedance",calculator="losslessInputImpedance"},{label="Quarter-Wave Transformer",calculator="quarterWaveTransformer"},{label="Electrical Length",calculator="electricalLength"}}}
+local transmissionLinesMenu={title="Transmission Lines",subtitle="Lossless-line analysis tools",items={{label="Reflection and Matching",menu=transmissionMetricsMenu},{label="Line Transformations",menu=transmissionTransformsMenu}}}
+
+local electromagneticsMenu={title="Electromagnetics",subtitle="ECE 216 tools",items={{label="Electrostatics",menu=electrostaticsMenu},{label="Magnetostatics",menu=magnetostaticsMenu},{label="Waves",menu=wavesMenu},{label="Transmission Lines",menu=transmissionLinesMenu}}}
+
+local rootMenu={title="Engineering Toolbox",subtitle="Use arrows and Enter",items={{label="History",special="history"},{label="Complex Numbers",menu=complexMenu},{label="Circuit Analysis",menu=circuitMenu},{label="Electromagnetics",menu=electromagneticsMenu},{label="Linear Algebra"},{label="Signals and Systems"},{label="General Math",menu=generalMathMenu}}}
+
+local menuStack={{menu=rootMenu,selected=1}}
+local activeCalculator=nil
+local historyView=HistoryView.new()
+local showingHistory=false
+
+local function currentFrame() return menuStack[#menuStack] end
+local function menuLabels(menu) local labels={}; for i,item in ipairs(menu.items) do labels[i]=item.label end; return labels end
+
+local function openCalculator(name,expressions)
+    activeCalculator=calculators[name]
+    if not activeCalculator then return false end
+    activeCalculator:reset()
+    if expressions then for i=1,math.min(#expressions,#activeCalculator.values) do activeCalculator.values[i]=expressions[i] or "" end end
+    return true
 end
 
-function complex.phase(re, im)
-    return math.atan2(im, re) * 180 / math.pi
-end
-
-function complex.rectToPolar(re, im)
-    return complex.magnitude(re, im), complex.phase(re, im)
-end
-
-function complex.polarToRect(magnitude, angleDegrees)
-    local angleRadians = angleDegrees * math.pi / 180
-
-    local realPart =
-        magnitude * math.cos(angleRadians)
-
-    local imaginaryPart =
-        magnitude * math.sin(angleRadians)
-
-    return realPart, imaginaryPart
-end
-
-local screens = {
-    main = {
-        title = "Engineering Toolbox",
-        items = {
-            "Complex Numbers",
-            "Circuit Analysis",
-            "Linear Algebra",
-            "Signals and Systems",
-            "General Math"
-        }
-    },
-
-    complex = {
-        title = "Complex Numbers",
-        items = {
-            "Rectangular to Polar",
-            "Polar to Rectangular",
-            "Magnitude and Phase",
-            "Complex Arithmetic"
-        }
-    }
-}
-
-
-local currentScreen = "main"
-local selectedItem = 1
-
-local rectToPolar = {
-    selectedField = 1,
-    realText = "",
-    imaginaryText = "",
-    magnitude = nil,
-    angle = nil,
-    errorMessage = nil
-}
-
-local polarToRect = {
-    selectedField = 1,
-    magnitudeText = "",
-    angleText = "",
-    realPart = nil,
-    imaginaryPart = nil,
-    errorMessage = nil
-}
-
-local function drawMenu(gc)
-    local width = platform.window:width()
-    local screen = screens[currentScreen]
-
-    gc:setFont("sansserif", "b", 14)
-    gc:drawString(
-        screen.title,
-        width / 2,
-        15,
-        "middle"
-    )
-
-    gc:setFont("sansserif", "r", 9)
-
-    if currentScreen == "main" then
-        gc:drawString(
-            "Use arrows and Enter",
-            width / 2,
-            38,
-            "middle"
-        )
-    else
-        gc:drawString(
-            "Enter to select, Esc to return",
-            width / 2,
-            38,
-            "middle"
-        )
-    end
-
-    for i, item in ipairs(screen.items) do
-        local y = 58 + ((i - 1) * 28)
-
-        if i == selectedItem then
-            gc:setFont("sansserif", "b", 11)
-            gc:drawString("> " .. item, 30, y, "top")
-        else
-            gc:setFont("sansserif", "r", 11)
-            gc:drawString("  " .. item, 30, y, "top")
-        end
+local function reopenHistoryEntry(entry)
+    if not entry then return end
+    for name,calculator in pairs(calculators) do
+        if calculator.title==entry.title and openCalculator(name,entry.expressions) then showingHistory=false; return end
     end
 end
 
-
-local function drawInputField(gc, label, text, y, isSelected)
-    gc:setFont("sansserif", "r", 11)
-    gc:drawString(label, 25, y, "top")
-
-    if isSelected then
-        gc:setFont("sansserif", "b", 11)
-        gc:drawString("> " .. text .. "_", 135, y, "top")
-    else
-        gc:setFont("sansserif", "r", 11)
-        gc:drawString("  " .. text, 135, y, "top")
-    end
+local function openSelectedMenuItem()
+    local frame=currentFrame()
+    local item=frame.menu.items[frame.selected]
+    if item.menu then menuStack[#menuStack+1]={menu=item.menu,selected=1}
+    elseif item.calculator then openCalculator(item.calculator)
+    elseif item.special=="history" then historyView:reset(); showingHistory=true end
 end
-
-
-local function drawRectToPolar(gc)
-    local width = platform.window:width()
-
-    gc:setFont("sansserif", "b", 14)
-    gc:drawString(
-        "Rectangular to Polar",
-        width / 2,
-        15,
-        "middle"
-    )
-
-    gc:setFont("sansserif", "r", 9)
-    gc:drawString(
-        "Type a value, then press Enter",
-        width / 2,
-        38,
-        "middle"
-    )
-
-    drawInputField(
-        gc,
-        "Real part:",
-        rectToPolar.realText,
-        65,
-        rectToPolar.selectedField == 1
-    )
-
-    drawInputField(
-        gc,
-        "Imaginary part:",
-        rectToPolar.imaginaryText,
-        95,
-        rectToPolar.selectedField == 2
-    )
-
-    if rectToPolar.errorMessage then
-        gc:setFont("sansserif", "b", 10)
-        gc:drawString(
-            rectToPolar.errorMessage,
-            width / 2,
-            130,
-            "middle"
-        )
-    end
-
-    if rectToPolar.magnitude then
-        gc:setFont("sansserif", "b", 11)
-
-        gc:drawString(
-            "Magnitude: " ..
-            string.format("%.4f", rectToPolar.magnitude),
-            25,
-            145,
-            "top"
-        )
-
-        gc:drawString(
-            "Angle: " ..
-            string.format("%.4f", rectToPolar.angle) ..
-            " degrees",
-            25,
-            175,
-            "top"
-        )
-    end
-
-    gc:setFont("sansserif", "r", 9)
-    gc:drawString(
-        "Esc: back   Del: erase",
-        width / 2,
-        210,
-        "middle"
-    )
-end
-
-
-local function drawPolarToRect(gc)
-    local width = platform.window:width()
-
-    gc:setFont("sansserif", "b", 14)
-    gc:drawString(
-        "Polar to Rectangular",
-        width / 2,
-        15,
-        "middle"
-    )
-
-    gc:setFont("sansserif", "r", 9)
-    gc:drawString(
-        "Angle is entered in degrees",
-        width / 2,
-        38,
-        "middle"
-    )
-
-    drawInputField(
-        gc,
-        "Magnitude:",
-        polarToRect.magnitudeText,
-        65,
-        polarToRect.selectedField == 1
-    )
-
-    drawInputField(
-        gc,
-        "Angle:",
-        polarToRect.angleText,
-        95,
-        polarToRect.selectedField == 2
-    )
-
-    if polarToRect.errorMessage then
-        gc:setFont("sansserif", "b", 10)
-        gc:drawString(
-            polarToRect.errorMessage,
-            width / 2,
-            130,
-            "middle"
-        )
-    end
-
-    if polarToRect.realPart ~= nil then
-        gc:setFont("sansserif", "b", 11)
-
-        gc:drawString(
-            "Real part: " ..
-            string.format("%.4f", polarToRect.realPart),
-            25,
-            145,
-            "top"
-        )
-
-        gc:drawString(
-            "Imaginary part: " ..
-            string.format("%.4f", polarToRect.imaginaryPart),
-            25,
-            175,
-            "top"
-        )
-    end
-
-    gc:setFont("sansserif", "r", 9)
-    gc:drawString(
-        "Esc: back   Del: erase",
-        width / 2,
-        210,
-        "middle"
-    )
-end
-
-
-local function calculateRectToPolar()
-    local realValue = tonumber(rectToPolar.realText)
-    local imaginaryValue = tonumber(rectToPolar.imaginaryText)
-
-    if realValue == nil or imaginaryValue == nil then
-        rectToPolar.errorMessage = "Enter two valid numbers"
-        rectToPolar.magnitude = nil
-        rectToPolar.angle = nil
-        return
-    end
-
-    rectToPolar.magnitude,
-    rectToPolar.angle =
-        complex.rectToPolar(realValue, imaginaryValue)
-
-    rectToPolar.errorMessage = nil
-end
-
-
-local function calculatePolarToRect()
-    local magnitudeValue =
-        tonumber(polarToRect.magnitudeText)
-
-    local angleValue =
-        tonumber(polarToRect.angleText)
-
-    if magnitudeValue == nil or angleValue == nil then
-        polarToRect.errorMessage =
-            "Enter two valid numbers"
-
-        polarToRect.realPart = nil
-        polarToRect.imaginaryPart = nil
-        return
-    end
-
-    if magnitudeValue < 0 then
-        polarToRect.errorMessage =
-            "Magnitude cannot be negative"
-
-        polarToRect.realPart = nil
-        polarToRect.imaginaryPart = nil
-        return
-    end
-
-    polarToRect.realPart,
-    polarToRect.imaginaryPart =
-        complex.polarToRect(
-            magnitudeValue,
-            angleValue
-        )
-
-    polarToRect.errorMessage = nil
-end
-
 
 function on.paint(gc)
-    if currentScreen == "rectToPolar" then
-        drawRectToPolar(gc)
-
-    elseif currentScreen == "polarToRect" then
-        drawPolarToRect(gc)
-
-    else
-        drawMenu(gc)
-    end
+    if activeCalculator then activeCalculator:draw(gc)
+    elseif showingHistory then historyView:draw(gc)
+    else local frame=currentFrame(); Menu.draw(gc,frame.menu.title,menuLabels(frame.menu),frame.selected,frame.menu.subtitle) end
 end
-
 
 function on.arrowKey(key)
-    if currentScreen == "rectToPolar" then
-        if key == "up" or key == "down" then
-            if rectToPolar.selectedField == 1 then
-                rectToPolar.selectedField = 2
-            else
-                rectToPolar.selectedField = 1
-            end
-        end
-
-        platform.window:invalidate()
-        return
-
-    elseif currentScreen == "polarToRect" then
-        if key == "up" or key == "down" then
-            if polarToRect.selectedField == 1 then
-                polarToRect.selectedField = 2
-            else
-                polarToRect.selectedField = 1
-            end
-        end
-
-        platform.window:invalidate()
-        return
-end
-    
-
-    local itemCount = #screens[currentScreen].items
-
-    if key == "up" then
-        selectedItem = selectedItem - 1
-
-        if selectedItem < 1 then
-            selectedItem = itemCount
-        end
-
-    elseif key == "down" then
-        selectedItem = selectedItem + 1
-
-        if selectedItem > itemCount then
-            selectedItem = 1
-        end
-    end
-
+    if activeCalculator then activeCalculator:moveField(key)
+    elseif showingHistory then historyView:move(key)
+    else local frame=currentFrame(); frame.selected=Menu.move(frame.selected,#frame.menu.items,key) end
     platform.window:invalidate()
 end
-
 
 function on.enterKey()
-    if currentScreen == "main" then
-        if selectedItem == 1 then
-            currentScreen = "complex"
-            selectedItem = 1
-        end
-
-    elseif currentScreen == "complex" then
-        if selectedItem == 1 then
-            currentScreen = "rectToPolar"
-
-            rectToPolar.selectedField = 1
-            rectToPolar.realText = ""
-            rectToPolar.imaginaryText = ""
-            rectToPolar.magnitude = nil
-            rectToPolar.angle = nil
-            rectToPolar.errorMessage = nil
-
-        elseif selectedItem == 2 then
-            currentScreen = "polarToRect"
-
-            polarToRect.selectedField = 1
-            polarToRect.magnitudeText = ""
-            polarToRect.angleText = ""
-            polarToRect.realPart = nil
-            polarToRect.imaginaryPart = nil
-            polarToRect.errorMessage = nil
-        end
-
-    elseif currentScreen == "rectToPolar" then
-        if rectToPolar.selectedField == 1 then
-            rectToPolar.selectedField = 2
-        else
-            calculateRectToPolar()
-        end
-
-    elseif currentScreen == "polarToRect" then
-        if polarToRect.selectedField == 1 then
-            polarToRect.selectedField = 2
-        else
-            calculatePolarToRect()
-        end
-    end
-
+    if activeCalculator then activeCalculator:enter()
+    elseif showingHistory then reopenHistoryEntry(historyView:getSelected())
+    else openSelectedMenuItem() end
     platform.window:invalidate()
 end
 
-
-function on.charIn(character)
-    if currentScreen ~= "rectToPolar"
-        and currentScreen ~= "polarToRect" then
-        return
-    end
-
-    local isDigit =
-        character >= "0" and character <= "9"
-
-    local isDecimal =
-        character == "."
-
-    local isNegative =
-        character == "-"
-
-    if not isDigit and not isDecimal and not isNegative then
-        return
-    end
-
-    if currentScreen == "rectToPolar" then
-        if rectToPolar.selectedField == 1 then
-            rectToPolar.realText =
-                rectToPolar.realText .. character
-        else
-            rectToPolar.imaginaryText =
-                rectToPolar.imaginaryText .. character
-        end
-
-        rectToPolar.magnitude = nil
-        rectToPolar.angle = nil
-        rectToPolar.errorMessage = nil
-
-    elseif currentScreen == "polarToRect" then
-        if polarToRect.selectedField == 1 then
-            polarToRect.magnitudeText =
-                polarToRect.magnitudeText .. character
-        else
-            polarToRect.angleText =
-                polarToRect.angleText .. character
-        end
-
-        polarToRect.realPart = nil
-        polarToRect.imaginaryPart = nil
-        polarToRect.errorMessage = nil
-    end
-
-    platform.window:invalidate()
-end
-
-
-function on.backspaceKey()
-    if currentScreen == "rectToPolar" then
-        if rectToPolar.selectedField == 1 then
-            rectToPolar.realText =
-                string.sub(rectToPolar.realText, 1, -2)
-        else
-            rectToPolar.imaginaryText =
-                string.sub(rectToPolar.imaginaryText, 1, -2)
-        end
-
-        rectToPolar.magnitude = nil
-        rectToPolar.angle = nil
-        rectToPolar.errorMessage = nil
-
-    elseif currentScreen == "polarToRect" then
-        if polarToRect.selectedField == 1 then
-            polarToRect.magnitudeText =
-                string.sub(polarToRect.magnitudeText, 1, -2)
-        else
-            polarToRect.angleText =
-                string.sub(polarToRect.angleText, 1, -2)
-        end
-
-        polarToRect.realPart = nil
-        polarToRect.imaginaryPart = nil
-        polarToRect.errorMessage = nil
-
-    else
-        return
-    end
-
-    platform.window:invalidate()
-end
-
+function on.charIn(character) if activeCalculator then activeCalculator:append(character); platform.window:invalidate() end end
+function on.backspaceKey() if activeCalculator then activeCalculator:backspace() elseif showingHistory then historyView:clear() end; platform.window:invalidate() end
 
 function on.escapeKey()
-    if currentScreen == "rectToPolar"
-        or currentScreen == "polarToRect" then
-
-        currentScreen = "complex"
-        selectedItem = 1
-
-    elseif currentScreen == "complex" then
-        currentScreen = "main"
-        selectedItem = 1
-    end
-
+    if activeCalculator then
+        if activeCalculator.page=="results" then activeCalculator.page="inputs"; activeCalculator:ensureSelectedVisible() else activeCalculator=nil end
+    elseif showingHistory then showingHistory=false
+    elseif #menuStack>1 then table.remove(menuStack) end
     platform.window:invalidate()
 end
