@@ -3,6 +3,7 @@
 registerTransientCalculators(calculators)
 registerTopicSolvers(calculators)
 registerTransmissionTopic(calculators)
+registerTwoWireLineTopic(calculators)
 
 local firstOrderMenu = {
     title="First-Order Circuits", subtitle="RC and RL step and decay responses",
@@ -36,7 +37,8 @@ local electricalTopicsMenu = {
     subtitle="Enter known values and calculate the full topic",
     items={
         {label="Series RLC",calculator="topicSeriesRLC"},
-        {label="Transmission Lines",calculator="topicTransmissionLine"}
+        {label="Transmission Lines",calculator="topicTransmissionLine"},
+        {label="Two-Wire Line Design",calculator="topicTwoWireLine"}
     }
 }
 
