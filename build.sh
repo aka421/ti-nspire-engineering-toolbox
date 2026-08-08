@@ -16,9 +16,6 @@ fi
 
 mkdir -p "$DIST"
 
-# Main Engineering Toolbox: individual calculators and references.
-# Solve-by-Topic files intentionally live in the separate Workspaces document
-# to avoid Luna's 200-local-variable limit for a single compiled Lua chunk.
 cat \
   "$ROOT/src/libraries/workspace.lua" \
   "$ROOT/src/libraries/expression.lua" \
@@ -62,8 +59,6 @@ cat \
   "$ROOT/src/menu/workspace_memory_extensions.lua" \
   > "$TOOLBOX_BUNDLE"
 
-# Engineering Workspaces: Solve-by-Topic dependency solvers.
-# It has its own A-J/Out memory because TI-Nspire documents do not share Lua state.
 cat \
   "$ROOT/src/libraries/workspace.lua" \
   "$ROOT/src/libraries/expression.lua" \
@@ -78,6 +73,7 @@ cat \
   "$ROOT/src/topics/transmission_lines.lua" \
   "$ROOT/src/topics/two_wire_line.lua" \
   "$ROOT/src/topics/rail_launcher.lua" \
+  "$ROOT/src/topics/ece216_ws34.lua" \
   "$ROOT/src/workspace_main.lua" \
   > "$WORKSPACE_BUNDLE"
 
